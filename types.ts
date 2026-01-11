@@ -3,6 +3,12 @@ export type UserRole = 'manager' | 'caregiver';
 export type ShiftStatus = 'scheduled' | 'open' | 'completed';
 export type RequestStatus = 'pending' | 'approved' | 'denied';
 
+export interface Client {
+  id: string;
+  name: string;
+  location: string;
+}
+
 export interface Employee {
   id: string;
   name: string;
@@ -22,6 +28,7 @@ export interface Shift {
   requiredRole: UserRole;
   assignedEmployeeId: string | null;
   status: ShiftStatus;
+  clientId: string;
 }
 
 export interface Availability {

@@ -2,13 +2,13 @@ import { initializeApp } from "firebase/app";
 import { getFirestore, connectFirestoreEmulator } from "firebase/firestore";
 
 const firebaseConfig = {
-  // Replace with your actual project config from the Firebase Console
-  apiKey: "AIzaSyAs-YOUR-ACTUAL-API-KEY",
+  apiKey: "AIzaSyARrHYRPrl8s-uM3kcJGYlrQbdR9ipEOIw",
   authDomain: "flexshift.firebaseapp.com",
   projectId: "flexshift",
-  storageBucket: "flexshift.appspot.com",
-  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-  appId: "YOUR_APP_ID"
+  storageBucket: "flexshift.firebasestorage.app",
+  messagingSenderId: "1005239847022",
+  appId: "1:1005239847022:web:fa9d6747f9f9e1e6723e7f",
+  measurementId: "G-2Q77EXCT6M"
 };
 
 const app = initializeApp(firebaseConfig);

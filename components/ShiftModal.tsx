@@ -1,7 +1,7 @@
 
-import React, { useState, useMemo } from 'react';
-import { Shift, Employee, UserRole } from '../types';
-import { X, Calendar, Clock, MapPin, Shield, User, Trash2, AlertTriangle } from 'lucide-react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { Shift, Employee, UserRole, Client } from '../types';
+import { X, Calendar, Clock, MapPin, Shield, User, Trash2, AlertTriangle, Briefcase } from 'lucide-react';
 import { format, parse, isAfter, isEqual } from 'date-fns';
 import { isOverlapping } from '../utils/helpers';
 
@@ -10,6 +10,7 @@ interface ShiftModalProps {
   onClose: () => void;
   shift: Shift | null;
   employees: Employee[];
+  clients: Client[];
   weekDates: Date[];
   onSave: (shift: any) => void;
   onDelete?: (id: string) => void;
@@ -21,6 +22,7 @@ const ShiftModal: React.FC<ShiftModalProps> = ({
   onClose, 
   shift, 
   employees, 
+  clients,
   weekDates, 
   onSave, 
   onDelete,
@@ -33,8 +35,15 @@ const ShiftModal: React.FC<ShiftModalProps> = ({
     location: shift?.location || 'Main Street',
     requiredRole: shift?.requiredRole || 'caregiver',
     assignedEmployeeId: shift?.assignedEmployeeId || '',
-    status: shift?.status || 'scheduled'
+    status: shift?.status || 'scheduled',
+    clientId: shift?.clientId || (clients.length > 0 ? clients[0].id : '')
   });
+
+  useEffect(() => {
+      if (!shift && clients.length > 0 && !formData.clientId) {
+          setFormData(fd => ({ ...fd, clientId: clients[0].id }));
+      }
+  }, [clients, shift, formData.clientId]);
 
   const [error, setError] = useState<string | null>(null);
 
@@ -42,17 +51,14 @@ const ShiftModal: React.FC<ShiftModalProps> = ({
     const start = parse(formData.startTime, 'HH:mm', new Date());
     const end = parse(formData.endTime, 'HH:mm', new Date());
 
-    // 1. End must be after start
-    if (!isAfter(end, start) && !isEqual(start, end)) {
-        // Handle overnight wrap-around check if we wanted to support it, 
-        // but for standard shifts we'll enforce chronological order.
-    }
-
     if (formData.startTime === formData.endTime) {
         return "Shift cannot have zero duration.";
     }
+    
+    if (!formData.clientId) {
+        return "A client must be selected for the shift.";
+    }
 
-    // 2. Check for overlaps if assigned
     if (formData.assignedEmployeeId) {
         const overlaps = allShifts.filter(s => 
             s.id !== shift?.id && 
@@ -156,6 +162,25 @@ const ShiftModal: React.FC<ShiftModalProps> = ({
                         className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition font-medium h-12"
                     />
                 </div>
+              </div>
+            </div>
+
+             {/* Client Selection */}
+            <div className="relative">
+              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1">Client</label>
+              <div className="relative">
+                <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-indigo-600" />
+                <select 
+                    value={formData.clientId}
+                    onChange={(e) => { setFormData({...formData, clientId: e.target.value}); setError(null); }}
+                    className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition appearance-none font-medium h-12"
+                    required
+                >
+                    <option value="">-- Select a Client --</option>
+                    {clients.map(c => (
+                        <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                </select>
               </div>
             </div>
 

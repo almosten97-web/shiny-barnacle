@@ -18,7 +18,8 @@ import {
   X,
   Sparkles,
   ShieldCheck,
-  RefreshCcw
+  RefreshCcw,
+  Briefcase
 } from 'lucide-react';
 import { format, addWeeks, subWeeks } from 'date-fns';
 import { 
@@ -38,9 +39,10 @@ import {
   Shift, 
   TimeOffRequest, 
   ShiftSwapRequest, 
-  OpenShiftClaim 
+  OpenShiftClaim,
+  Client
 } from './types';
-import { MOCK_EMPLOYEES, MOCK_SHIFTS, MOCK_TIME_OFF } from './mockData';
+import { MOCK_EMPLOYEES, MOCK_SHIFTS, MOCK_TIME_OFF, MOCK_CLIENTS } from './mockData';
 import { getWeekDates } from './utils/helpers';
 
 // Components
@@ -51,11 +53,13 @@ import ReportGenerator from './components/ReportGenerator';
 import ShiftModal from './components/ShiftModal';
 import SwapModal from './components/SwapModal';
 import EmployeeModal from './components/EmployeeModal';
+import ClientManager from './components/ClientManager';
 
 export default function App() {
   // State
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [shifts, setShifts] = useState<Shift[]>([]);
+  const [clients, setClients] = useState<Client[]>([]);
   const [timeOffRequests, setTimeOffRequests] = useState<TimeOffRequest[]>([]);
   const [swapRequests, setSwapRequests] = useState<ShiftSwapRequest[]>([]);
   const [openClaims, setOpenClaims] = useState<OpenShiftClaim[]>([]);
@@ -66,7 +70,7 @@ export default function App() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   
   // UI State
-  const [currentTab, setCurrentTab] = useState<'schedule' | 'employees' | 'requests' | 'reports'>('schedule');
+  const [currentTab, setCurrentTab] = useState<'schedule' | 'employees' | 'requests' | 'reports' | 'clients'>('schedule');
   const [currentDate, setCurrentDate] = useState(new Date()); 
   const [selectedShift, setSelectedShift] = useState<Shift | null>(null);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
@@ -85,6 +89,7 @@ export default function App() {
     setFirebaseStatus('local');
     setEmployees([]);
     setShifts([]);
+    setClients(MOCK_CLIENTS);
     setTimeOffRequests([]);
     setLoading(false);
   }, []);
@@ -112,6 +117,11 @@ export default function App() {
       const data = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Shift));
       setShifts(data);
     }, handleError);
+    
+    const unsubClients = onSnapshot(collection(db, "clients"), (snapshot) => {
+        const data = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Client));
+        setClients(data);
+    }, handleError);
 
     const unsubTimeOff = onSnapshot(collection(db, "timeOffRequests"), (snapshot) => {
       setTimeOffRequests(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as TimeOffRequest)));
@@ -128,6 +138,7 @@ export default function App() {
     return () => {
       unsubEmployees();
       unsubShifts();
+      unsubClients();
       unsubTimeOff();
       unsubSwaps();
       unsubClaims();
@@ -414,6 +425,13 @@ export default function App() {
               <span>Employees</span>
             </button>
             <button 
+              onClick={() => setCurrentTab('clients')} 
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition font-medium ${currentTab === 'clients' ? 'bg-indigo-800 text-white' : 'text-indigo-200 hover:bg-white/5'}`}
+            >
+              <Briefcase className="w-5 h-5" />
+              <span>Clients</span>
+            </button>
+            <button 
               onClick={() => setCurrentTab('requests')} 
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition font-medium ${currentTab === 'requests' ? 'bg-indigo-800 text-white' : 'text-indigo-200 hover:bg-white/5'}`}
             >
@@ -565,6 +583,14 @@ export default function App() {
                 employees={employees} 
                 userMode={isManager ? 'manager' : 'employee'} 
                 onEditEmployee={(emp) => { setSelectedEmployee(emp); setIsEmployeeModalOpen(true); }}
+            />
+          )}
+
+          {currentTab === 'clients' && (
+            <ClientManager 
+              clients={clients}
+              shifts={shifts}
+              employees={employees}
             />
           )}
 
