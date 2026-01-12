@@ -1,34 +1,26 @@
-tsx
 import React, { useState, useEffect } from 'react';
-import ClientModal from './ClientModal'; // Ensure this path is correct
-import { Client } from '../types'; // Ensure this path is correct
-import { PlusCircle, Edit, Users } from 'lucide-react'; // Import icons
+import ClientModal from './ClientModal';
+import { Client } from '../types';
+import { PlusCircle, Edit, Users } from 'lucide-react';
 
-// Assume this component receives and manages a list of clients
 interface ClientManagerProps {
-  initialClients: Client[]; // Example prop for initial client data
-  // Add props for saving/deleting client data (e.g., Firebase functions)
+  clients: Client[]; // Now directly receives clients from parent
   onAddClient: (newClient: Omit<Client, 'id'>) => Promise<void>;
   onUpdateClient: (updatedClient: Client) => Promise<void>;
   onDeleteClient: (clientId: string) => Promise<void>;
 }
 
 const ClientManager: React.FC<ClientManagerProps> = ({
-  initialClients,
+  clients, // Use the clients prop directly
   onAddClient,
   onUpdateClient,
   onDeleteClient,
 }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
-  const [clients, setClients] = useState<Client[]>(initialClients); // Manage clients state locally or fetch from context/Firebase
-
-  useEffect(() => {
-    setClients(initialClients);
-  }, [initialClients]);
 
   const handleOpenAddClientModal = () => {
-    setSelectedClient(null); // Clear any previously selected client to add a new one
+    setSelectedClient(null);
     setIsModalOpen(true);
   };
 
@@ -46,14 +38,10 @@ const ClientManager: React.FC<ClientManagerProps> = ({
     if ((clientData as Client).id) {
       // It's an existing client (editing)
       await onUpdateClient(clientData as Client);
-      setClients(clients.map(c => c.id === (clientData as Client).id ? (clientData as Client) : c));
     } else {
       // It's a new client (adding)
-      // For a new client, you'd typically get an ID back from your backend (e.g., Firebase)
-      // For this example, let's mock an ID
-      const newClient: Client = { ...clientData as Omit<Client, 'id'>, id: `client-${Date.now()}` };
-      await onAddClient(newClient); // Call your actual add function
-      setClients([...clients, newClient]);
+      // onAddClient will handle adding to Firestore and ID generation
+      await onAddClient(clientData as Omit<Client, 'id'>);
     }
     handleCloseModal();
   };
@@ -61,7 +49,6 @@ const ClientManager: React.FC<ClientManagerProps> = ({
   const handleDeleteClient = async (clientId: string) => {
     if (window.confirm("Are you sure you want to delete this client? This action cannot be undone.")) {
       await onDeleteClient(clientId);
-      setClients(clients.filter(client => client.id !== clientId));
       handleCloseModal();
     }
   };
@@ -82,7 +69,7 @@ const ClientManager: React.FC<ClientManagerProps> = ({
         </button>
       </div>
 
-      {/* Client List Display - Example */}
+      {/* Client List Display */}
       <div className="bg-white shadow overflow-hidden sm:rounded-md">
         <ul className="divide-y divide-gray-200">
           {clients.length === 0 ? (
@@ -129,30 +116,3 @@ const ClientManager: React.FC<ClientManagerProps> = ({
 };
 
 export default ClientManager;
-
-
-Important Reminders:
-
-types.ts: Make sure your types.ts file still includes the color property in the Client interface:
-
-    // types.ts
-    export interface Client {
-      id: string;
-      name: string;
-      address?: string; // Optional: If you collect address
-      color?: string; // <-- THIS MUST BE PRESENT
-      // Add any other client-related fields here
-    }
-
-    export interface Shift {
-      id: string;
-      clientId: string; // Link to Client
-      assignedEmployeeId: string;
-      // ... other shift properties
-    }
-
-    export interface Employee {
-      id: string;
-      name: string;
-      // ... other employee properties
-    }
