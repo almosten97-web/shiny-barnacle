@@ -1,0 +1,6 @@
+{
+  "projects": {
+    "production": "almosten97-web",
+    "development": "almosten97-web-dev"
+  }
+}
