@@ -1,27 +1,29 @@
 import React, { useState } from 'react';
 import { getAuth, signInWithEmailAndPassword, User, sendSignInLinkToEmail } from 'firebase/auth';
-import { app } from '../firebase'; // Assuming your firebase.ts exports 'app'
+import { app } from '../firebase';
 
 interface LoginProps {
   onLoginSuccess: (user: User) => void;
-  onError: (errorMessage: string) => void;
+  onError: (message: string | null) => void; // Can accept null to clear the message
+  message: string | null; // The message to display
 }
 
-const Login: React.FC<LoginProps> = ({ onLoginSuccess, onError }) => {
+const Login: React.FC<LoginProps> = ({ onLoginSuccess, onError, message }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const [emailForLink, setEmailForLink] = useState(''); // State for email link sign-in
+  const [emailForLink, setEmailForLink] = useState('');
   const auth = getAuth(app);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    onError(null); // Clear previous messages
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       onLoginSuccess(userCredential.user);
     } catch (error: any) {
-      onError(error.message);
+      onError(error.message); // Display error message on the page
     } finally {
       setLoading(false);
     }
@@ -33,10 +35,12 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess, onError }) => {
       return;
     }
     setLoading(true);
+    onError(null); // Clear previous messages
+    
     const actionCodeSettings = {
-      url: window.location.href,
+      // It's crucial that this URL is in the authorized domains list in your Firebase console.
+      url: window.location.origin, // Redirect back to the main page after sign-in.
       handleCodeInApp: true,
-      dynamicLinkDomain: 'almosten97-web-dev.page.link',
     };
 
     try {
@@ -44,17 +48,25 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess, onError }) => {
       window.localStorage.setItem('emailForSignIn', emailForLink);
       onError('A sign-in link has been sent to your email. Please check your inbox.');
     } catch (error: any) {
-      onError(error.message);
+      console.error("Error sending email link: ", error);
+      onError(`Failed to send link: ${error.message}`);
     } finally {
       setLoading(false);
     }
   };
 
-
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-100">
       <div className="px-8 py-6 mt-4 text-left bg-white shadow-lg rounded-lg">
         <h3 className="text-2xl font-bold text-center">Login to your account</h3>
+        
+        {/* Display Message Area from props */}
+        {message && (
+          <p className={`mt-4 text-center p-2 rounded-md ${message.includes('Failed') || message.includes('Error') ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
+            {message}
+          </p>
+        )}
+
         <form onSubmit={handleSubmit}>
           <div className="mt-4">
             <div>
