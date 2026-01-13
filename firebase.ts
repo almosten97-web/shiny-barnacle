@@ -2,14 +2,14 @@
 import { initializeApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 
-// Your web app's Firebase configuration
+// Your web app's Firebase configuration for DEVELOPMENT
 const firebaseConfig = {
-  apiKey: "AIzaSyARrHYRPrl8s-uM3kcJGYlrQbdR9ipEOIw",
-  authDomain: "almosten97-web.firebaseapp.com",
-  projectId: "almosten97-web",
-  storageBucket: "almosten97-web.appspot.com",
-  messagingSenderId: "1005239847022",
-  appId: "1:1005239847022:web:fa9d6747f9f9e1e6723e7f"
+  apiKey: "AIzaSyAPlyGrvui6XEpfygIJlttxlJ-MdLLRGRY",
+  authDomain: "almosten97-web-dev.firebaseapp.com",
+  projectId: "almosten97-web-dev",
+  storageBucket: "almosten97-web-dev.appspot.com",
+  messagingSenderId: "78256750862",
+  appId: "1:78256750862:web:6d6163a966b3cdecaf575f"
 };
 
 // Initialize Firebase
