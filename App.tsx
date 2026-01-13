@@ -33,7 +33,7 @@ import {
   where,
   getDocs
 } from "firebase/firestore";
-import { getAuth, onAuthStateChanged, signOut, User } from "firebase/auth"; // Import User type
+import { getAuth, onAuthStateChanged, signOut, User, isSignInWithEmailLink, signInWithEmailLink } from "firebase/auth"; // Import User type
 import { db, app } from './firebase'; // Ensure 'app' is also exported from firebase.ts
 
 import {
@@ -70,7 +70,6 @@ export default function App() {
 
   // Persistence & Error State
   const [loading, setLoading] = useState(true);
-  // const [firebaseStatus, setFirebaseStatus] = useState<'connected' | 'error'>('connected'); // Removed firebaseStatus
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // Auth State
@@ -91,6 +90,29 @@ export default function App() {
   const weekDates = useMemo(() => getWeekDates(currentDate), [currentDate]);
 
   const isManager = currentUser?.role === 'manager';
+
+  // Handle Email Link Sign In
+  useEffect(() => {
+    const completeSignIn = async () => {
+      if (isSignInWithEmailLink(auth, window.location.href)) {
+        let email = window.localStorage.getItem('emailForSignIn');
+        if (!email) {
+          email = window.prompt('Please provide your email for confirmation');
+        }
+        if (email) {
+          try {
+            const result = await signInWithEmailLink(auth, email, window.location.href);
+            window.localStorage.removeItem('emailForSignIn');
+            onLoginSuccess(result.user);
+          } catch (error: any) {
+            setErrorMessage(`Error signing in with email link: ${error.message}`);
+          }
+        }
+      }
+    };
+    completeSignIn();
+  }, [auth]);
+
 
   // Firebase Auth Effect
   useEffect(() => {
@@ -141,7 +163,6 @@ export default function App() {
     const handleError = (error: FirestoreError) => {
       console.error("Firestore Error:", error.code, error.message);
       setErrorMessage(error.message);
-      // setFirebaseStatus('error'); // Removed firebaseStatus
       setLoading(false); // Stop loading regardless
     };
 
@@ -149,34 +170,28 @@ export default function App() {
       const data = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Employee));
       setEmployees(data);
       setLoading(false);
-      // setFirebaseStatus('connected'); // Removed firebaseStatus
     }, handleError);
 
     const unsubShifts = onSnapshot(collection(db, "shifts"), (snapshot) => {
       const data = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Shift));
       setShifts(data);
-      // setFirebaseStatus('connected'); // Removed firebaseStatus
     }, handleError);
 
     const unsubClients = onSnapshot(collection(db, "clients"), (snapshot) => {
       const data = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Client));
       setClients(data);
-      // setFirebaseStatus('connected'); // Removed firebaseStatus
     }, handleError);
 
     const unsubTimeOff = onSnapshot(collection(db, "timeOffRequests"), (snapshot) => {
       setTimeOffRequests(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as TimeOffRequest)));
-      // setFirebaseStatus('connected'); // Removed firebaseStatus
     }, handleError);
 
     const unsubSwaps = onSnapshot(collection(db, "swapRequests"), (snapshot) => {
       setSwapRequests(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as ShiftSwapRequest)));
-      // setFirebaseStatus('connected'); // Removed firebaseStatus
     }, handleError);
 
     const unsubClaims = onSnapshot(collection(db, "openClaims"), (snapshot) => {
       setOpenClaims(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as OpenShiftClaim)));
-      // setFirebaseStatus('connected'); // Removed firebaseStatus
     }, handleError);
 
     return () => {
@@ -226,12 +241,12 @@ export default function App() {
       setEmployees([]);
       setShifts([]);
       setClients([]);
-      setTimeOffRequests([]);
+setTimeOffRequests([]);
       setSwapRequests([]);
       setOpenClaims([]);
     } catch (error: any) {
       console.error("Error signing out:", error);
-      setErrorMessage(`Error signing out: ${e.message}`);
+      setErrorMessage(`Error signing out: ${error.message}`);
     }
   };
 
@@ -438,7 +453,7 @@ export default function App() {
 
   // If not authenticated or current user is not a manager, show login or access denied.
   if (!authUser) {
-    return <Login onLoginSuccess={onLoginSuccess} />;
+    return <Login onLoginSuccess={onLoginSuccess} onError={setErrorMessage} />;
   }
 
   // If authenticated but no employee profile OR not a manager, show access denied

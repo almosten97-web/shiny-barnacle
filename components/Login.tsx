@@ -36,15 +36,7 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess, onError }) => {
     const actionCodeSettings = {
       url: window.location.href,
       handleCodeInApp: true,
-      iOS: {
-        bundleId: 'com.example.ios', // Dummy value
-      },
-      android: {
-        packageName: 'com.example.android', // Dummy value
-        installApp: true,
-        minimumVersion: '12',
-      },
-      dynamicLinkDomain: 'example.page.link', // You might need to configure this in Firebase Console
+      dynamicLinkDomain: 'almosten97-web-dev.page.link',
     };
 
     try {
