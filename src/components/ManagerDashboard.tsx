@@ -4,7 +4,7 @@ import React from 'react';
 interface ManagerDashboardProps {
   manager: {
     id: string;
-    name: string;
+    full_name: string;
     email: string;
     role: 'manager';
   };
@@ -14,7 +14,7 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({ manager }) => {
   return (
     <div className="p-8">
       <h2 className="text-3xl font-bold text-gray-800">Manager Dashboard</h2>
-      <p className="mt-2 text-lg text-gray-600">Welcome, {manager.name}!</p>
+      <p className="mt-2 text-lg text-gray-600">Welcome, {manager.full_name}!</p>
       <div className="mt-6 bg-white shadow-md rounded-lg p-6">
         <h3 className="text-xl font-semibold text-gray-700">Your Information</h3>
         <p className="mt-2 text-gray-600"><strong>Email:</strong> {manager.email}</p>

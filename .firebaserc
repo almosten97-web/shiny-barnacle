@@ -1,7 +1,0 @@
-{
-  "projects": {
-    "default": "almosten97-web-dev",
-    "development": "almosten97-web-dev",
-    "production": "flexshift"
-  }
-}

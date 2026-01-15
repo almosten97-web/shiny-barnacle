@@ -1,7 +1,6 @@
 
 import React, { useState } from 'react';
-import { getAuth, sendSignInLinkToEmail } from 'firebase/auth';
-import { app } from '../firebase';
+import { supabase } from '../supabase';
 
 interface LoginProps {
   onLoginSuccess: (user: any) => void;
@@ -13,26 +12,29 @@ const Login: React.FC<LoginProps> = ({ onError, message }) => {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
-  const auth = getAuth(app);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     onError(''); // Clear previous errors
 
-    const actionCodeSettings = {
-      url: window.location.href, // URL to redirect back to
-      handleCodeInApp: true,
-    };
-
     try {
-      await sendSignInLinkToEmail(auth, email, actionCodeSettings);
-      window.localStorage.setItem('emailForSignIn', email);
+      const { error } = await supabase.auth.signInWithOtp({
+        email: email,
+        options: {
+          emailRedirectTo: window.location.href,
+        },
+      });
+
+      if (error) {
+        throw error;
+      }
+
       setEmailSent(true);
-      setLoading(false);
     } catch (error: any) {
       console.error(error);
       onError(`Failed to send sign-in link: ${error.message}`);
+    } finally {
       setLoading(false);
     }
   };
