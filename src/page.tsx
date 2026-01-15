@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from './supabase';
 import { Session } from '@supabase/supabase-js';
-import { AdminDashboard, EmployeeDashboard, LoginPage, NoRole } from './components';
+import { AdminDashboard, EmployeeDashboard, Login, NoRole } from './components';
 
 interface Profile {
   id: string;
@@ -88,7 +88,7 @@ const App: React.FC = () => {
   }
 
   if (!session) {
-    return <LoginPage />;
+    return <Login onError={setMessage} message={message} onLoginSuccess={() => {}} />;
   }
 
   if (message) {
