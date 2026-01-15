@@ -2,10 +2,9 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from 'path'
 
-// https://vitejs.dev/config/
 export default defineConfig({
-  root: '.',
   plugins: [react()],
+  base: '/', // Add this line to fix MIME type errors
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
@@ -14,12 +13,11 @@ export default defineConfig({
   build: {
     outDir: './dist',
     rollupOptions: {
-        input: './index.html'
-    }
+      input: './index.html',
+    },
   },
   server: {
     fs: {
-      // Allow serving files from one level up to the project root
       strict: false,
     },
   },
