@@ -1,6 +1,10 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = 'https://ootpxmlqinwwxdnpjbfo.supabase.co';
-const supabaseAnonKey = 'sb_publishable_7Q0RfOo5SXfd6sFTYwk3YA_S4TcnLnZ';
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+if (!supabaseUrl || !supabaseAnonKey) {
+  throw new Error('Supabase URL and anonymous key are required.');
+}
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
