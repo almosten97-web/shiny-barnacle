@@ -1,8 +1,8 @@
-
 import React, { useState, useEffect } from 'react';
 import { supabase } from './supabase';
 import { Session } from '@supabase/supabase-js';
-import { AdminDashboard, EmployeeDashboard, Login, NoRole } from './components';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { Dashboard, Login } from './components';
 
 interface Profile {
   id: string;
@@ -44,37 +44,74 @@ const App: React.FC = () => {
 
   const fetchUserProfile = async (user: any) => {
     try {
-      const { data: profileData, error } = await supabase
+      const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', user.id)
         .single();
 
-      if (profileData) {
-        setProfile(profileData);
-      } else if (error && error.code === 'PGRST116') { // 'PGRST116' indicates no rows found
-        // Profile doesn't exist, check if this is the first user.
-        const { data: allProfiles, error: countError } = await supabase
-          .from('profiles')
-          .select('id');
+      if (profileError && profileError.code !== 'PGRST116') {
+          throw profileError;
+      }
 
-        if (countError) {
-          throw countError;
-        } 
-        if (allProfiles && allProfiles.length === 0) {
-          // First user, create a profile with admin role
-          const { data: newUser, error: insertError } = await supabase
-            .from('profiles')
-            .insert([{ id: user.id, full_name: user.email, role: 'admin' }])
+      if (profileData) {
+        const { data: userRole, error: roleError } = await supabase
+            .from('user_roles')
+            .select('roles(name)')
+            .eq('user_id', user.id)
             .single();
-          if (insertError) throw insertError;
-          setProfile(newUser);
-        } else {
-            // Not the first user, so they need to be approved
-            setProfile({ id: user.id, full_name: user.email, role: '' });
+        
+        if (roleError && roleError.code !== 'PGRST116') {
+            throw roleError;
         }
-      } else if (error) {
-        throw error;
+        
+        const role = userRole ? (userRole as any).roles.name : '';
+        setProfile({ ...profileData, role });
+
+      } else { // No profile found, so this is a new user
+        
+        const { count, error: countError } = await supabase
+          .from('profiles')
+          .select('id', { count: 'exact', head: true });
+        
+        if (countError) throw countError;
+
+        // Create the profile first
+        const { data: newProfile, error: insertProfileError } = await supabase
+            .from('profiles')
+            .insert({id: user.id, full_name: user.email})
+            .select()
+            .single();
+        
+        if (insertProfileError) throw insertProfileError;
+        if (!newProfile) throw new Error("Could not create profile");
+
+        if (count === 0) { // First user, grant admin role
+          
+          const { data: adminRole, error: adminRoleError } = await supabase
+            .from('roles')
+            .select('id')
+            .eq('name', 'admin')
+            .single();
+          
+          if(adminRoleError) throw adminRoleError;
+
+          if(adminRole) {
+            const { error: userRoleError } = await supabase
+              .from('user_roles')
+              .insert({user_id: user.id, role_id: adminRole.id});
+
+            if(userRoleError) throw userRoleError;
+
+            setProfile({ ...newProfile, role: 'admin' });
+          } else {
+              // This case should not happen if the seed script has run
+              setProfile({ ...newProfile, role: '' });
+          }
+          
+        } else { // Not the first user
+          setProfile({ ...newProfile, role: '' });
+        }
       }
     } catch (error: any) {
       setMessage("An unexpected error occurred while fetching your profile. Please try again.");
@@ -83,30 +120,20 @@ const App: React.FC = () => {
     }
   };
 
+
   if (loading) {
     return <div className="flex items-center justify-center h-screen"><div className="text-xl">Loading...</div></div>;
   }
 
-  if (!session) {
-    return <Login onError={setMessage} message={message} onLoginSuccess={() => {}} />;
-  }
-
-  if (message) {
-    return <div className="flex items-center justify-center h-screen"><div className="text-xl text-red-500">{message}</div></div>;
-  }
-
-  if (profile) {
-    switch (profile.role) {
-      case 'admin':
-        return <AdminDashboard admin={profile} />;
-      case 'user':
-        return <EmployeeDashboard employee={profile} />;
-      default:
-        return <NoRole />;
-    }
-  }
-
-  return <div className="flex items-center justify-center h-screen"><div className="text-xl">Loading...</div></div>;
+  return (
+    <Router>
+      <Routes>
+        <Route path="/login" element={!session ? <Login onError={setMessage} message={message} onLoginSuccess={() => {}} /> : <Navigate to="/" />} />
+        <Route path="/" element={session && profile ? <Dashboard profile={profile as Profile} /> : <Navigate to="/login" />} />
+        <Route path="*" element={<Navigate to="/" />} />
+      </Routes>
+    </Router>
+  );
 };
 
 export default App;

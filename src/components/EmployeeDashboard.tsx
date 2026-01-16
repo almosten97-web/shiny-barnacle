@@ -1,7 +1,13 @@
 import React from 'react';
 
+interface Profile {
+  id: string;
+  full_name: string;
+  role: string;
+}
+
 interface EmployeeDashboardProps {
-    employee: any;
+  employee: Profile;
 }
 
 const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({ employee }) => {

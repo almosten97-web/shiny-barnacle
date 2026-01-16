@@ -1,7 +1,13 @@
 import React from 'react';
 
+interface Profile {
+  id: string;
+  full_name: string;
+  role: string;
+}
+
 interface AdminDashboardProps {
-    admin: any;
+  admin: Profile;
 }
 
 const AdminDashboard: React.FC<AdminDashboardProps> = ({ admin }) => {
