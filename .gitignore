@@ -133,3 +133,4 @@ dist
 
 # Vite build output
 dist
+.vercel
