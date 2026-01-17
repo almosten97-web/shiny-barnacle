@@ -12,8 +12,7 @@
     ],
     "skipLibCheck": true,
     "types": [
-      "node",
-      "jest"
+      "node"
     ],
     "esModuleInterop": true,
     "moduleResolution": "bundler",

@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from './supabase';
 import { Session } from '@supabase/supabase-js';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { Dashboard, Login } from './components';
+import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
+import { Dashboard } from './components';
 
 interface Profile {
   id: string;
@@ -13,32 +13,46 @@ interface Profile {
 const App: React.FC = () => {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [message, setMessage] = useState<string>('');
+  const [loading, setLoading] = useState(true);
+  const [message, setMessage] = useState('');
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const getSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      setSession(session);
-      if (session) {
-        await fetchUserProfile(session.user);
+      try {
+        const { data, error: sessionError } = await supabase.auth.getSession();
+        if (sessionError) {
+          console.error('Session error:', sessionError);
+          setError('Failed to get session. Please try logging in again.');
+          setLoading(false);
+          return;
+        }
+        setSession(data.session);
+        if (data.session?.user) {
+          await fetchUserProfile(data.session.user);
+        } else {
+          setLoading(false);
+        }
+      } catch (err) {
+        console.error('Unexpected error getting session:', err);
+        setError('An unexpected error occurred. Please try again.');
+        setLoading(false);
       }
-      setLoading(false);
     };
 
     getSession();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
       setSession(session);
-      if (session) {
-        fetchUserProfile(session.user);
+      if (session?.user) {
+        await fetchUserProfile(session.user);
       } else {
         setProfile(null);
       }
     });
 
     return () => {
-      subscription?.unsubscribe();
+      authListener.subscription.unsubscribe();
     };
   }, []);
 
@@ -50,87 +64,47 @@ const App: React.FC = () => {
         .eq('id', user.id)
         .single();
 
-      if (profileError && profileError.code !== 'PGRST116') {
-          throw profileError;
+      if (profileError) {
+        console.error('Profile fetch error:', profileError);
+        setError('Failed to load profile. Please check your database setup.');
+        setProfile(null);
+        setLoading(false);
+        return;
       }
 
-      if (profileData) {
-        const { data: userRole, error: roleError } = await supabase
-            .from('user_roles')
-            .select('roles(name)')
-            .eq('user_id', user.id)
-            .single();
-        
-        if (roleError && roleError.code !== 'PGRST116') {
-            throw roleError;
-        }
-        
-        const role = userRole ? (userRole as any).roles.name : '';
-        setProfile({ ...profileData, role });
-
-      } else { // No profile found, so this is a new user
-        
-        const { count, error: countError } = await supabase
-          .from('profiles')
-          .select('id', { count: 'exact', head: true });
-        
-        if (countError) throw countError;
-
-        // Create the profile first
-        const { data: newProfile, error: insertProfileError } = await supabase
-            .from('profiles')
-            .insert({id: user.id, full_name: user.email})
-            .select()
-            .single();
-        
-        if (insertProfileError) throw insertProfileError;
-        if (!newProfile) throw new Error("Could not create profile");
-
-        if (count === 0) { // First user, grant admin role
-          
-          const { data: adminRole, error: adminRoleError } = await supabase
-            .from('roles')
-            .select('id')
-            .eq('name', 'admin')
-            .single();
-          
-          if(adminRoleError) throw adminRoleError;
-
-          if(adminRole) {
-            const { error: userRoleError } = await supabase
-              .from('user_roles')
-              .insert({user_id: user.id, role_id: adminRole.id});
-
-            if(userRoleError) throw userRoleError;
-
-            setProfile({ ...newProfile, role: 'admin' });
-          } else {
-              // This case should not happen if the seed script has run
-              setProfile({ ...newProfile, role: '' });
-          }
-          
-        } else { // Not the first user
-          setProfile({ ...newProfile, role: '' });
-        }
-      }
-    } catch (error: any) {
-      setMessage("An unexpected error occurred while fetching your profile. Please try again.");
+      setProfile(profileData);
+      setError(null);
+    } catch (err) {
+      console.error('Unexpected error fetching profile:', err);
+      setError('An unexpected error occurred while loading your profile.');
+      setProfile(null);
     } finally {
       setLoading(false);
     }
   };
 
+  const setLoadingState = (msg: string) => {
+    setMessage(msg);
+    setLoading(true);
+  };
 
-  if (loading) {
-    return <div className="flex items-center justify-center h-screen"><div className="text-xl">Loading...</div></div>;
+  if (loading) return <div>Loading...</div>;
+
+  if (error) {
+    return (
+      <div style={{ padding: '20px', textAlign: 'center' }}>
+        <h2>Error</h2>
+        <p>{error}</p>
+        <button onClick={() => window.location.href = '/login'}>Go to Login</button>
+      </div>
+    );
   }
 
   return (
     <Router>
       <Routes>
-        <Route path="/login" element={!session ? <Login onError={setMessage} message={message} onLoginSuccess={() => {}} /> : <Navigate to="/" />} />
-        <Route path="/" element={session && profile ? <Dashboard profile={profile as Profile} /> : <Navigate to="/login" />} />
-        <Route path="*" element={<Navigate to="/" />} />
+        <Route path="/login" element={<Navigate to="/" />} />
+        <Route path="*" element={<Dashboard profile={profile as Profile} session={session as Session} />} />
       </Routes>
     </Router>
   );
