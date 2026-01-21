@@ -104,44 +104,42 @@ const App: React.FC = () => {
     }
   };
 
-  if (loading) {
-    return (
-      <div style={{ padding: '40px', textAlign: 'center' }}>
-        <h2>Loading...</h2>
-        <p>Setting up your profile...</p>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div style={{ padding: '20px', textAlign: 'center' }}>
-        <h2>Error</h2>
-        <p>{error}</p>
-        <button onClick={() => window.location.href = '/login'}>Go to Login</button>
-      </div>
-    );
-  }
-
-  if (!profile || !session) {
-    return <Navigate to="/login" />;
-  }
-
   return (
     <Router>
-      <Routes>
-        <Route path="/login" element={<Navigate to="/" />} />
-        <Route 
-          path="*" 
-          element={
-            <Dashboard 
-              profile={profile} 
-              session={session} 
-              isAdmin={isAdmin}
-            />
-          } 
-        />
-      </Routes>
+      {loading && (
+        <div style={{ padding: '40px', textAlign: 'center' }}>
+          <h2>Loading...</h2>
+          <p>Setting up your profile...</p>
+        </div>
+      )}
+
+      {error && (
+        <div style={{ padding: '20px', textAlign: 'center' }}>
+          <h2>Error</h2>
+          <p>{error}</p>
+          <button onClick={() => window.location.href = '/login'}>Go to Login</button>
+        </div>
+      )}
+
+      {!loading && !error && (
+        <Routes>
+          <Route path="/login" element={<Navigate to="/" />} />
+          <Route 
+            path="*" 
+            element={
+              profile && session ? (
+                <Dashboard 
+                  profile={profile} 
+                  session={session} 
+                  isAdmin={isAdmin}
+                />
+              ) : (
+                <Navigate to="/login" />
+              )
+            } 
+          />
+        </Routes>
+      )}
     </Router>
   );
 };
