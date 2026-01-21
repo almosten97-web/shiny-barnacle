@@ -57,6 +57,7 @@ const App: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const currentUserIdRef = useRef<string | null>(null);
+  const listenerRef = useRef<ReturnType<typeof supabase.auth.onAuthStateChange> | null>(null);
 
   const fetchUserProfile = async (userId: string) => {
     try {
@@ -68,7 +69,7 @@ const App: React.FC = () => {
 
       if (profileError) {
         console.error('Profile fetch error:', profileError);
-        setError('Failed to load profile. Please check your database setup.');
+        setError('Failed to load profile.');
         setProfile(null);
         setIsAdmin(false);
         setLoading(false);
@@ -76,22 +77,21 @@ const App: React.FC = () => {
       }
 
       if (!profileData) {
-        setError('No profile found for this user.');
+        setError('No profile found.');
         setProfile(null);
         setIsAdmin(false);
         setLoading(false);
         return;
       }
 
-      const adminStatus = profileData.is_admin === true;
       setProfile(profileData);
-      setIsAdmin(adminStatus);
+      setIsAdmin(profileData.is_admin === true);
       setError(null);
       setLoading(false);
-      console.log('User profile loaded:', { id: profileData.id, isAdmin: adminStatus });
+      console.log('Profile loaded:', { id: profileData.id, isAdmin: profileData.is_admin });
     } catch (err) {
-      console.error('Unexpected error fetching profile:', err);
-      setError('An unexpected error occurred while loading your profile.');
+      console.error('Profile fetch error:', err);
+      setError('An unexpected error occurred.');
       setProfile(null);
       setIsAdmin(false);
       setLoading(false);
@@ -101,15 +101,15 @@ const App: React.FC = () => {
   useEffect(() => {
     let isMounted = true;
 
-    const initializeAuth = async () => {
+    const setupAuth = async () => {
       try {
+        // Get initial session
         const { data, error: sessionError } = await supabase.auth.getSession();
 
         if (!isMounted) return;
 
         if (sessionError) {
-          console.error('Session error:', sessionError);
-          setError('Failed to get session. Please try logging in again.');
+          setError('Failed to get session.');
           setSession(null);
           setLoading(false);
           return;
@@ -121,66 +121,52 @@ const App: React.FC = () => {
           await fetchUserProfile(data.session.user.id);
         } else {
           setSession(null);
+          setProfile(null);
           setLoading(false);
         }
       } catch (err) {
-        console.error('Unexpected error during initialization:', err);
-        setError('An unexpected error occurred. Please try again.');
+        console.error('Auth setup error:', err);
+        setError('An error occurred.');
         setLoading(false);
       }
-    };
 
-    initializeAuth();
-
-    // Set up listener for auth state changes
-    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, newSession) => {
       if (!isMounted) return;
 
-      console.log('Auth state changed:', event);
+      // Setup listener ONLY for login/logout events, not initial
+      listenerRef.current = supabase.auth.onAuthStateChange((event, newSession) => {
+        if (!isMounted) return;
 
-      // Skip INITIAL_SESSION as we already handle it in initializeAuth
-      if (event === 'INITIAL_SESSION') {
-        return;
-      }
-
-      const newUserId = newSession?.user?.id;
-
-      if (newUserId !== currentUserIdRef.current) {
-        currentUserIdRef.current = newUserId;
-
-        if (newSession?.user) {
-          setSession(newSession);
-          await fetchUserProfile(newSession.user.id);
-        } else {
-          setSession(null);
-          setProfile(null);
-          setIsAdmin(false);
-          setLoading(false);
+        // Only process real auth changes, not initial session load
+        if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN' || event === 'SIGNED_OUT') {
+          if (event === 'SIGNED_OUT') {
+            // Clear everything on sign out
+            currentUserIdRef.current = null;
+            setSession(null);
+            setProfile(null);
+            setIsAdmin(false);
+            setError(null);
+            setLoading(false);
+            console.log('Signed out');
+          }
+          // For SIGNED_IN and INITIAL_SESSION, getSession call above already handled it
         }
-      }
-    });
+      });
+    };
+
+    setupAuth();
 
     return () => {
       isMounted = false;
-      authListener?.subscription?.unsubscribe();
+      if (listenerRef.current?.data?.subscription) {
+        listenerRef.current.data.subscription.unsubscribe();
+      }
     };
   }, []);
 
   return (
     <Routes>
       <Route path="/login" element={<Navigate to="/" replace />} />
-      <Route
-        path="*"
-        element={
-          <RootLayout
-            session={session}
-            profile={profile}
-            isAdmin={isAdmin}
-            loading={loading}
-            error={error}
-          />
-        }
-      />
+      <Route path="*" element={<RootLayout session={session} profile={profile} isAdmin={isAdmin} loading={loading} error={error} />} />
     </Routes>
   );
 };
