@@ -11,6 +11,46 @@ interface Profile {
   is_admin?: boolean;
 }
 
+// Loading/Error wrapper component
+const RootLayout: React.FC<{
+  session: Session | null;
+  profile: Profile | null;
+  isAdmin: boolean;
+  loading: boolean;
+  error: string | null;
+}> = ({ session, profile, isAdmin, loading, error }) => {
+  if (loading) {
+    return (
+      <div style={{ padding: '40px', textAlign: 'center' }}>
+        <h2>Loading...</h2>
+        <p>Setting up your profile...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div style={{ padding: '20px', textAlign: 'center' }}>
+        <h2>Error</h2>
+        <p>{error}</p>
+        <button onClick={() => window.location.href = '/login'}>Go to Login</button>
+      </div>
+    );
+  }
+
+  if (!profile || !session) {
+    return <Navigate to="/login" replace />;
+  }
+
+  return (
+    <Dashboard 
+      profile={profile} 
+      session={session} 
+      isAdmin={isAdmin}
+    />
+  );
+};
+
 const App: React.FC = () => {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -63,7 +103,7 @@ const App: React.FC = () => {
     try {
       setLoading(true);
       setError(null);
-      
+
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select('id, full_name, role, is_admin')
@@ -87,12 +127,11 @@ const App: React.FC = () => {
         return;
       }
 
-      // Check admin status from profile - explicitly from is_admin column
       const adminStatus = profileData.is_admin === true;
       setProfile(profileData);
       setIsAdmin(adminStatus);
       setError(null);
-      
+
       console.log('User profile loaded:', { id: profileData.id, isAdmin: adminStatus });
     } catch (err) {
       console.error('Unexpected error fetching profile:', err);
@@ -105,42 +144,21 @@ const App: React.FC = () => {
   };
 
   return (
-    <>
-      {loading && (
-        <div style={{ padding: '40px', textAlign: 'center' }}>
-          <h2>Loading...</h2>
-          <p>Setting up your profile...</p>
-        </div>
-      )}
-
-      {error && (
-        <div style={{ padding: '20px', textAlign: 'center' }}>
-          <h2>Error</h2>
-          <p>{error}</p>
-          <button onClick={() => window.location.href = '/login'}>Go to Login</button>
-        </div>
-      )}
-
-      {!loading && !error && (
-        <Routes>
-          <Route path="/login" element={<Navigate to="/" />} />
-          <Route 
-            path="*" 
-            element={
-              profile && session ? (
-                <Dashboard 
-                  profile={profile} 
-                  session={session} 
-                  isAdmin={isAdmin}
-                />
-              ) : (
-                <Navigate to="/login" />
-              )
-            } 
+    <Routes>
+      <Route path="/login" element={<Navigate to="/" replace />} />
+      <Route 
+        path="*" 
+        element={
+          <RootLayout 
+            session={session}
+            profile={profile}
+            isAdmin={isAdmin}
+            loading={loading}
+            error={error}
           />
-        </Routes>
-      )}
-    </>
+        } 
+      />
+    </Routes>
   );
 };
 
