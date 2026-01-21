@@ -153,6 +153,12 @@ const App: React.FC = () => {
 
       console.log('Auth event:', event);
 
+      // Skip INITIAL_SESSION - already handled by getSession
+      if (event === 'INITIAL_SESSION') {
+        console.log('Skipping INITIAL_SESSION');
+        return;
+      }
+
       if (event === 'SIGNED_IN' && newSession?.user) {
         console.log('User signed in');
         setSession(newSession);
