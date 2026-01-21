@@ -8,11 +8,13 @@ interface Profile {
   id: string;
   full_name: string;
   role: string;
+  is_admin?: boolean;
 }
 
 const App: React.FC = () => {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -48,6 +50,7 @@ const App: React.FC = () => {
         await fetchUserProfile(session.user);
       } else {
         setProfile(null);
+        setIsAdmin(false);
       }
     });
 
@@ -68,16 +71,21 @@ const App: React.FC = () => {
         console.error('Profile fetch error:', profileError);
         setError('Failed to load profile. Please check your database setup.');
         setProfile(null);
+        setIsAdmin(false);
         setLoading(false);
         return;
       }
 
+      // Check admin status from profile
+      const adminStatus = profileData?.is_admin || false;
       setProfile(profileData);
+      setIsAdmin(adminStatus);
       setError(null);
     } catch (err) {
       console.error('Unexpected error fetching profile:', err);
       setError('An unexpected error occurred while loading your profile.');
       setProfile(null);
+      setIsAdmin(false);
     } finally {
       setLoading(false);
     }
