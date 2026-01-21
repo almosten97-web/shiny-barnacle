@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from './supabase';
 import { Session } from '@supabase/supabase-js';
 import { Route, Routes } from 'react-router-dom';
-import { Dashboard } from './components';
+import { Dashboard, Login } from './components';
 
 interface Profile {
   id: string;
@@ -11,29 +11,24 @@ interface Profile {
   is_admin?: boolean;
 }
 
-const RootLayout: React.FC<{
+const ProtectedRoute: React.FC<{
   session: Session | null;
   profile: Profile | null;
   isAdmin: boolean;
   loading: boolean;
   error: string | null;
 }> = ({ session, profile, isAdmin, loading, error }) => {
-  // Redirect to login if not authenticated
-  useEffect(() => {
-    if (!loading && (!profile || !session)) {
-      window.location.href = '/login';
-    }
-  }, [loading, profile, session]);
-
+  // If still loading, show loading screen
   if (loading) {
     return (
       <div style={{ padding: '40px', textAlign: 'center' }}>
         <h2>Loading...</h2>
-        <p>Setting up your profile...</p>
+        <p>Checking authentication...</p>
       </div>
     );
   }
 
+  // If error, show error screen
   if (error) {
     return (
       <div style={{ padding: '20px', textAlign: 'center' }}>
@@ -44,10 +39,12 @@ const RootLayout: React.FC<{
     );
   }
 
-  if (!profile || !session) {
-    return null;
+  // If no session or profile, redirect to login via route
+  if (!session || !profile) {
+    return <Login />;
   }
 
+  // User is authenticated, show dashboard
   return (
     <Dashboard
       profile={profile}
@@ -63,16 +60,18 @@ const App: React.FC = () => {
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const currentUserIdRef = useRef<string | null>(null);
-  const listenerRef = useRef<ReturnType<typeof supabase.auth.onAuthStateChange> | null>(null);
+  const isMountedRef = useRef(true);
 
   const fetchUserProfile = async (userId: string) => {
+    console.log('Fetching profile for user:', userId);
     try {
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select('id, full_name, role, is_admin')
         .eq('id', userId)
         .single();
+
+      if (!isMountedRef.current) return;
 
       if (profileError) {
         console.error('Profile fetch error:', profileError);
@@ -84,6 +83,7 @@ const App: React.FC = () => {
       }
 
       if (!profileData) {
+        console.log('No profile data returned');
         setError('No profile found.');
         setProfile(null);
         setIsAdmin(false);
@@ -91,91 +91,93 @@ const App: React.FC = () => {
         return;
       }
 
+      console.log('Profile fetched:', profileData);
       setProfile(profileData);
       setIsAdmin(profileData.is_admin === true);
       setError(null);
       setLoading(false);
-      console.log('Profile loaded:', { id: profileData.id, isAdmin: profileData.is_admin });
     } catch (err) {
-      console.error('Profile fetch error:', err);
-      setError('An unexpected error occurred.');
-      setProfile(null);
-      setIsAdmin(false);
-      setLoading(false);
+      console.error('Profile fetch exception:', err);
+      if (isMountedRef.current) {
+        setError('An unexpected error occurred.');
+        setProfile(null);
+        setIsAdmin(false);
+        setLoading(false);
+      }
     }
   };
 
   useEffect(() => {
-    let isMounted = true;
+    isMountedRef.current = true;
 
-    const setupAuth = async () => {
+    const initializeAuth = async () => {
       try {
-        // Get initial session
+        console.log('Getting session...');
         const { data, error: sessionError } = await supabase.auth.getSession();
 
-        if (!isMounted) return;
+        if (!isMountedRef.current) return;
 
         if (sessionError) {
+          console.error('Session error:', sessionError);
           setError('Failed to get session.');
           setSession(null);
           setLoading(false);
           return;
         }
 
-        if (data.session?.user) {
-          currentUserIdRef.current = data.session.user.id;
-          setSession(data.session);
-          await fetchUserProfile(data.session.user.id);
+        const currentSession = data.session;
+        console.log('Session:', currentSession ? 'Found' : 'None');
+
+        if (currentSession?.user) {
+          setSession(currentSession);
+          await fetchUserProfile(currentSession.user.id);
         } else {
           setSession(null);
           setProfile(null);
           setLoading(false);
+          console.log('No session found - user needs to login');
         }
       } catch (err) {
-        console.error('Auth setup error:', err);
-        setError('An error occurred.');
-        setLoading(false);
-      }
-
-      if (!isMounted) return;
-
-      // Setup listener ONLY for login/logout events
-      listenerRef.current = supabase.auth.onAuthStateChange((event, newSession) => {
-        if (!isMounted) return;
-
-        // Only process real auth changes
-        if (event === 'SIGNED_IN') {
-          if (newSession?.user) {
-            currentUserIdRef.current = newSession.user.id;
-            setSession(newSession);
-            fetchUserProfile(newSession.user.id);
-          }
-        } else if (event === 'SIGNED_OUT') {
-          // Clear everything on sign out
-          currentUserIdRef.current = null;
-          setSession(null);
-          setProfile(null);
-          setIsAdmin(false);
-          setError(null);
+        console.error('Auth init error:', err);
+        if (isMountedRef.current) {
+          setError('An error occurred.');
           setLoading(false);
-          console.log('Signed out');
         }
-      });
+      }
     };
 
-    setupAuth();
+    initializeAuth();
+
+    const { data: authListener } = supabase.auth.onAuthStateChange((event, newSession) => {
+      if (!isMountedRef.current) return;
+
+      console.log('Auth event:', event);
+
+      if (event === 'SIGNED_IN' && newSession?.user) {
+        console.log('User signed in');
+        setSession(newSession);
+        setLoading(true);
+        fetchUserProfile(newSession.user.id);
+      } else if (event === 'SIGNED_OUT') {
+        console.log('User signed out');
+        setSession(null);
+        setProfile(null);
+        setIsAdmin(false);
+        setError(null);
+        setLoading(false);
+      }
+    });
 
     return () => {
-      isMounted = false;
-      if (listenerRef.current?.data?.subscription) {
-        listenerRef.current.data.subscription.unsubscribe();
-      }
+      isMountedRef.current = false;
+      authListener?.subscription?.unsubscribe();
     };
   }, []);
 
   return (
     <Routes>
-      <Route path="*" element={<RootLayout session={session} profile={profile} isAdmin={isAdmin} loading={loading} error={error} />} />
+      <Route path="/login" element={<Login />} />
+      <Route path="*" element={<ProtectedRoute session={session} profile={profile} isAdmin={isAdmin} loading={loading} error={error} />} />
     </Routes>
   );
 };
