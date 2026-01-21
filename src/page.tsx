@@ -56,7 +56,8 @@ const App: React.FC = () => {
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const initializingRef = useRef(false);
+  const userIdRef = useRef<string | null>(null);
+  const initDoneRef = useRef(false);
 
   const fetchUserProfile = async (userId: string) => {
     try {
@@ -71,6 +72,7 @@ const App: React.FC = () => {
         setError('Failed to load profile. Please check your database setup.');
         setProfile(null);
         setIsAdmin(false);
+        setLoading(false);
         return;
       }
 
@@ -78,6 +80,7 @@ const App: React.FC = () => {
         setError('No profile found for this user.');
         setProfile(null);
         setIsAdmin(false);
+        setLoading(false);
         return;
       }
 
@@ -85,23 +88,27 @@ const App: React.FC = () => {
       setProfile(profileData);
       setIsAdmin(adminStatus);
       setError(null);
+      setLoading(false);
       console.log('User profile loaded:', { id: profileData.id, isAdmin: adminStatus });
     } catch (err) {
       console.error('Unexpected error fetching profile:', err);
       setError('An unexpected error occurred while loading your profile.');
       setProfile(null);
       setIsAdmin(false);
+      setLoading(false);
     }
   };
 
   useEffect(() => {
-    if (initializingRef.current) return;
-    initializingRef.current = true;
+    let isMounted = true;
 
     const initializeAuth = async () => {
       try {
+        // Get current session
         const { data, error: sessionError } = await supabase.auth.getSession();
-        
+
+        if (!isMounted) return;
+
         if (sessionError) {
           console.error('Session error:', sessionError);
           setError('Failed to get session. Please try logging in again.');
@@ -112,9 +119,11 @@ const App: React.FC = () => {
 
         if (data.session?.user) {
           setSession(data.session);
+          userIdRef.current = data.session.user.id;
           await fetchUserProfile(data.session.user.id);
         } else {
           setSession(null);
+          userIdRef.current = null;
           setLoading(false);
         }
       } catch (err) {
@@ -124,23 +133,36 @@ const App: React.FC = () => {
       }
     };
 
-    initializeAuth();
+    // Only initialize once
+    if (!initDoneRef.current) {
+      initDoneRef.current = true;
+      initializeAuth();
+    }
 
     // Set up listener for auth state changes
     const { data: authListener } = supabase.auth.onAuthStateChange(async (event, newSession) => {
+      if (!isMounted) return;
+
       console.log('Auth state changed:', event);
-      setSession(newSession);
-      
-      if (newSession?.user) {
-        await fetchUserProfile(newSession.user.id);
-      } else {
-        setProfile(null);
-        setIsAdmin(false);
-        setLoading(false);
+
+      // Only refetch if user ID actually changed
+      const newUserId = newSession?.user?.id;
+      if (newUserId !== userIdRef.current) {
+        userIdRef.current = newUserId;
+        setSession(newSession);
+
+        if (newSession?.user) {
+          await fetchUserProfile(newSession.user.id);
+        } else {
+          setProfile(null);
+          setIsAdmin(false);
+          setLoading(false);
+        }
       }
     });
 
     return () => {
+      isMounted = false;
       authListener?.subscription?.unsubscribe();
     };
   }, []);
