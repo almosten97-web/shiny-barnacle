@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from './supabase';
 import { Session } from '@supabase/supabase-js';
 import { Route, Routes, Navigate } from 'react-router-dom';
@@ -11,7 +11,6 @@ interface Profile {
   is_admin?: boolean;
 }
 
-// Loading/Error wrapper component
 const RootLayout: React.FC<{
   session: Session | null;
   profile: Profile | null;
@@ -43,9 +42,9 @@ const RootLayout: React.FC<{
   }
 
   return (
-    <Dashboard 
-      profile={profile} 
-      session={session} 
+    <Dashboard
+      profile={profile}
+      session={session}
       isAdmin={isAdmin}
     />
   );
@@ -57,36 +56,83 @@ const App: React.FC = () => {
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const initializingRef = useRef(false);
+
+  const fetchUserProfile = async (userId: string) => {
+    try {
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('id, full_name, role, is_admin')
+        .eq('id', userId)
+        .single();
+
+      if (profileError) {
+        console.error('Profile fetch error:', profileError);
+        setError('Failed to load profile. Please check your database setup.');
+        setProfile(null);
+        setIsAdmin(false);
+        return;
+      }
+
+      if (!profileData) {
+        setError('No profile found for this user.');
+        setProfile(null);
+        setIsAdmin(false);
+        return;
+      }
+
+      const adminStatus = profileData.is_admin === true;
+      setProfile(profileData);
+      setIsAdmin(adminStatus);
+      setError(null);
+      console.log('User profile loaded:', { id: profileData.id, isAdmin: adminStatus });
+    } catch (err) {
+      console.error('Unexpected error fetching profile:', err);
+      setError('An unexpected error occurred while loading your profile.');
+      setProfile(null);
+      setIsAdmin(false);
+    }
+  };
 
   useEffect(() => {
-    const getSession = async () => {
+    if (initializingRef.current) return;
+    initializingRef.current = true;
+
+    const initializeAuth = async () => {
       try {
         const { data, error: sessionError } = await supabase.auth.getSession();
+        
         if (sessionError) {
           console.error('Session error:', sessionError);
           setError('Failed to get session. Please try logging in again.');
+          setSession(null);
           setLoading(false);
           return;
         }
-        setSession(data.session);
+
         if (data.session?.user) {
-          await fetchUserProfile(data.session.user);
+          setSession(data.session);
+          await fetchUserProfile(data.session.user.id);
         } else {
+          setSession(null);
           setLoading(false);
         }
       } catch (err) {
-        console.error('Unexpected error getting session:', err);
+        console.error('Unexpected error during initialization:', err);
         setError('An unexpected error occurred. Please try again.');
         setLoading(false);
       }
     };
 
-    getSession();
+    initializeAuth();
 
-    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
-      setSession(session);
-      if (session?.user) {
-        await fetchUserProfile(session.user);
+    // Set up listener for auth state changes
+    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, newSession) => {
+      console.log('Auth state changed:', event);
+      setSession(newSession);
+      
+      if (newSession?.user) {
+        await fetchUserProfile(newSession.user.id);
       } else {
         setProfile(null);
         setIsAdmin(false);
@@ -95,68 +141,24 @@ const App: React.FC = () => {
     });
 
     return () => {
-      authListener.subscription.unsubscribe();
+      authListener?.subscription?.unsubscribe();
     };
   }, []);
-
-  const fetchUserProfile = async (user: any) => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .select('id, full_name, role, is_admin')
-        .eq('id', user.id)
-        .single();
-
-      if (profileError) {
-        console.error('Profile fetch error:', profileError);
-        setError('Failed to load profile. Please check your database setup.');
-        setProfile(null);
-        setIsAdmin(false);
-        setLoading(false);
-        return;
-      }
-
-      if (!profileData) {
-        setError('No profile found for this user.');
-        setProfile(null);
-        setIsAdmin(false);
-        setLoading(false);
-        return;
-      }
-
-      const adminStatus = profileData.is_admin === true;
-      setProfile(profileData);
-      setIsAdmin(adminStatus);
-      setError(null);
-
-      console.log('User profile loaded:', { id: profileData.id, isAdmin: adminStatus });
-    } catch (err) {
-      console.error('Unexpected error fetching profile:', err);
-      setError('An unexpected error occurred while loading your profile.');
-      setProfile(null);
-      setIsAdmin(false);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   return (
     <Routes>
       <Route path="/login" element={<Navigate to="/" replace />} />
-      <Route 
-        path="*" 
+      <Route
+        path="*"
         element={
-          <RootLayout 
+          <RootLayout
             session={session}
             profile={profile}
             isAdmin={isAdmin}
             loading={loading}
             error={error}
           />
-        } 
+        }
       />
     </Routes>
   );
