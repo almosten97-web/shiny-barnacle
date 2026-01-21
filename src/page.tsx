@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from './supabase';
 import { Session } from '@supabase/supabase-js';
-import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
+import { Route, Routes, Navigate } from 'react-router-dom';
 import { Dashboard } from './components';
 
 interface Profile {
@@ -105,7 +105,7 @@ const App: React.FC = () => {
   };
 
   return (
-    <Router>
+    <>
       {loading && (
         <div style={{ padding: '40px', textAlign: 'center' }}>
           <h2>Loading...</h2>
@@ -140,7 +140,7 @@ const App: React.FC = () => {
           />
         </Routes>
       )}
-    </Router>
+    </>
   );
 };
 
