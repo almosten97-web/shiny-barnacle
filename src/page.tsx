@@ -16,7 +16,6 @@ const App: React.FC = () => {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [message, setMessage] = useState('');
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -51,6 +50,7 @@ const App: React.FC = () => {
       } else {
         setProfile(null);
         setIsAdmin(false);
+        setLoading(false);
       }
     });
 
@@ -61,9 +61,12 @@ const App: React.FC = () => {
 
   const fetchUserProfile = async (user: any) => {
     try {
+      setLoading(true);
+      setError(null);
+      
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
-        .select('*')
+        .select('id, full_name, role, is_admin')
         .eq('id', user.id)
         .single();
 
@@ -76,11 +79,21 @@ const App: React.FC = () => {
         return;
       }
 
-      // Check admin status from profile
-      const adminStatus = profileData?.is_admin || false;
+      if (!profileData) {
+        setError('No profile found for this user.');
+        setProfile(null);
+        setIsAdmin(false);
+        setLoading(false);
+        return;
+      }
+
+      // Check admin status from profile - explicitly from is_admin column
+      const adminStatus = profileData.is_admin === true;
       setProfile(profileData);
       setIsAdmin(adminStatus);
       setError(null);
+      
+      console.log('User profile loaded:', { id: profileData.id, isAdmin: adminStatus });
     } catch (err) {
       console.error('Unexpected error fetching profile:', err);
       setError('An unexpected error occurred while loading your profile.');
@@ -91,12 +104,14 @@ const App: React.FC = () => {
     }
   };
 
-  const setLoadingState = (msg: string) => {
-    setMessage(msg);
-    setLoading(true);
-  };
-
-  if (loading) return <div>Loading...</div>;
+  if (loading) {
+    return (
+      <div style={{ padding: '40px', textAlign: 'center' }}>
+        <h2>Loading...</h2>
+        <p>Setting up your profile...</p>
+      </div>
+    );
+  }
 
   if (error) {
     return (
@@ -108,11 +123,24 @@ const App: React.FC = () => {
     );
   }
 
+  if (!profile || !session) {
+    return <Navigate to="/login" />;
+  }
+
   return (
     <Router>
       <Routes>
         <Route path="/login" element={<Navigate to="/" />} />
-        <Route path="*" element={<Dashboard profile={profile as Profile} session={session as Session} />} />
+        <Route 
+          path="*" 
+          element={
+            <Dashboard 
+              profile={profile} 
+              session={session} 
+              isAdmin={isAdmin}
+            />
+          } 
+        />
       </Routes>
     </Router>
   );
