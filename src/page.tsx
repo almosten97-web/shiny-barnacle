@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from './supabase';
 import { Session } from '@supabase/supabase-js';
-import { Route, Routes, Navigate } from 'react-router-dom';
+import { Route, Routes } from 'react-router-dom';
 import { Dashboard } from './components';
 
 interface Profile {
@@ -18,6 +18,13 @@ const RootLayout: React.FC<{
   loading: boolean;
   error: string | null;
 }> = ({ session, profile, isAdmin, loading, error }) => {
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (!loading && (!profile || !session)) {
+      window.location.href = '/login';
+    }
+  }, [loading, profile, session]);
+
   if (loading) {
     return (
       <div style={{ padding: '40px', textAlign: 'center' }}>
@@ -38,7 +45,7 @@ const RootLayout: React.FC<{
   }
 
   if (!profile || !session) {
-    return <Navigate to="/login" replace />;
+    return null;
   }
 
   return (
@@ -132,23 +139,26 @@ const App: React.FC = () => {
 
       if (!isMounted) return;
 
-      // Setup listener ONLY for login/logout events, not initial
+      // Setup listener ONLY for login/logout events
       listenerRef.current = supabase.auth.onAuthStateChange((event, newSession) => {
         if (!isMounted) return;
 
-        // Only process real auth changes, not initial session load
-        if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN' || event === 'SIGNED_OUT') {
-          if (event === 'SIGNED_OUT') {
-            // Clear everything on sign out
-            currentUserIdRef.current = null;
-            setSession(null);
-            setProfile(null);
-            setIsAdmin(false);
-            setError(null);
-            setLoading(false);
-            console.log('Signed out');
+        // Only process real auth changes
+        if (event === 'SIGNED_IN') {
+          if (newSession?.user) {
+            currentUserIdRef.current = newSession.user.id;
+            setSession(newSession);
+            fetchUserProfile(newSession.user.id);
           }
-          // For SIGNED_IN and INITIAL_SESSION, getSession call above already handled it
+        } else if (event === 'SIGNED_OUT') {
+          // Clear everything on sign out
+          currentUserIdRef.current = null;
+          setSession(null);
+          setProfile(null);
+          setIsAdmin(false);
+          setError(null);
+          setLoading(false);
+          console.log('Signed out');
         }
       });
     };
@@ -165,7 +175,6 @@ const App: React.FC = () => {
 
   return (
     <Routes>
-      <Route path="/login" element={<Navigate to="/" replace />} />
       <Route path="*" element={<RootLayout session={session} profile={profile} isAdmin={isAdmin} loading={loading} error={error} />} />
     </Routes>
   );
