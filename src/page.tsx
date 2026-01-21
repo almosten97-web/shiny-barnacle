@@ -56,8 +56,7 @@ const App: React.FC = () => {
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const userIdRef = useRef<string | null>(null);
-  const initDoneRef = useRef(false);
+  const currentUserIdRef = useRef<string | null>(null);
 
   const fetchUserProfile = async (userId: string) => {
     try {
@@ -104,7 +103,6 @@ const App: React.FC = () => {
 
     const initializeAuth = async () => {
       try {
-        // Get current session
         const { data, error: sessionError } = await supabase.auth.getSession();
 
         if (!isMounted) return;
@@ -118,12 +116,11 @@ const App: React.FC = () => {
         }
 
         if (data.session?.user) {
+          currentUserIdRef.current = data.session.user.id;
           setSession(data.session);
-          userIdRef.current = data.session.user.id;
           await fetchUserProfile(data.session.user.id);
         } else {
           setSession(null);
-          userIdRef.current = null;
           setLoading(false);
         }
       } catch (err) {
@@ -133,11 +130,7 @@ const App: React.FC = () => {
       }
     };
 
-    // Only initialize once
-    if (!initDoneRef.current) {
-      initDoneRef.current = true;
-      initializeAuth();
-    }
+    initializeAuth();
 
     // Set up listener for auth state changes
     const { data: authListener } = supabase.auth.onAuthStateChange(async (event, newSession) => {
@@ -145,15 +138,21 @@ const App: React.FC = () => {
 
       console.log('Auth state changed:', event);
 
-      // Only refetch if user ID actually changed
+      // Skip INITIAL_SESSION as we already handle it in initializeAuth
+      if (event === 'INITIAL_SESSION') {
+        return;
+      }
+
       const newUserId = newSession?.user?.id;
-      if (newUserId !== userIdRef.current) {
-        userIdRef.current = newUserId;
-        setSession(newSession);
+
+      if (newUserId !== currentUserIdRef.current) {
+        currentUserIdRef.current = newUserId;
 
         if (newSession?.user) {
+          setSession(newSession);
           await fetchUserProfile(newSession.user.id);
         } else {
+          setSession(null);
           setProfile(null);
           setIsAdmin(false);
           setLoading(false);
