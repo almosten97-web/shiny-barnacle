@@ -3,6 +3,7 @@ import { supabase } from './supabase';
 import { Session } from '@supabase/supabase-js';
 import { Route, Routes } from 'react-router-dom';
 import { Dashboard, Login } from './components';
+import { Schedules, Staff, Settings, Analytics } from './components';
 
 interface Profile {
   id: string;
@@ -183,6 +184,10 @@ const App: React.FC = () => {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
+            <Route path="/schedules" element={<Schedules />} />
+      <Route path="/staff" element={<Staff />} />
+      <Route path="/settings" element={<Settings />} />
+      <Route path="/analytics" element={<Analytics />} />
       <Route path="*" element={<ProtectedRoute session={session} profile={profile} isAdmin={isAdmin} loading={loading} error={error} />} />
     </Routes>
   );
