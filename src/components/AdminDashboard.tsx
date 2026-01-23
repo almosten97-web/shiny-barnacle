@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 
 interface Profile {
   id: string;
@@ -24,10 +25,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ admin }) => {
       <div style={{ marginTop: '20px' }}>
         <h3>Admin Features:</h3>
         <ul>
-          <li>View all shift schedules</li>
-          <li>Manage staff and roles</li>
-          <li>Configure system settings</li>
-          <li>View analytics and reports</li>
+            <li><Link to="/schedules" style={{ textDecoration: 'none', color: '#1976d2' }}>View all shift schedules</Link></li>          <li>Manage staff and roles</li>
+            <li><Link to="/staff" style={{ textDecoration: 'none', color: '#1976d2' }}>Manage staff and roles</Link></li>          <li>View analytics and reports</li>
+                      <li><Link to="/settings" style={{ textDecoration: 'none', color: '#1976d2' }}>Configure system settings</Link></li>
+                      <li><Link to="/analytics" style={{ textDecoration: 'none', color: '#1976d2' }}>View analytics and reports</Link></li>
         </ul>
       </div>
     </div>
