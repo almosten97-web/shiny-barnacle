@@ -13,6 +13,10 @@ export default defineConfig({
       '@/assets': path.resolve(__dirname, './src/assets'),
     },
   },
+  test: {
+    environment: 'jsdom',
+    setupFiles: './src/test/setup.ts',
+  },
   build: {
     outDir: './dist',
     sourcemap: true, // Recommended for production debugging
