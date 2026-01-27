@@ -1,0 +1,101 @@
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { supabase } from '../supabase';
+
+type ShiftCardProps = {
+  shiftId: string;
+  title: string;
+  description?: string | null;
+  start_time: string;
+  end_time: string;
+  status: 'open' | 'pending' | 'confirmed';
+};
+
+const ShiftCard: React.FC<ShiftCardProps> = ({ shiftId, title, description, start_time, end_time, status }) => {
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState({ claim: false, swap: false, details: false });
+  const [localStatus, setLocalStatus] = useState(status);
+
+  const handleClaim = async () => {
+    setLoading((prev) => ({ ...prev, claim: true }));
+    try {
+      const { data: userData, error: userError } = await supabase.auth.getUser();
+      if (userError) throw userError;
+      if (!userData.user) throw new Error('User must be logged in to claim a shift.');
+
+      const { error: claimError } = await supabase
+        .from('shifts')
+        .update({ status: 'pending', assigned_to: userData.user.id })
+        .eq('id', shiftId);
+
+      if (claimError) throw claimError;
+      setLocalStatus('pending');
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoading((prev) => ({ ...prev, claim: false }));
+    }
+  };
+
+  const handleSwap = async () => {
+    setLoading((prev) => ({ ...prev, swap: true }));
+    try {
+      console.log(`Requesting swap for ${shiftId}`);
+    } finally {
+      setLoading((prev) => ({ ...prev, swap: false }));
+    }
+  };
+
+  const handleDetails = async () => {
+    setLoading((prev) => ({ ...prev, details: true }));
+    try {
+      navigate(`/shifts/${shiftId}`);
+    } finally {
+      setLoading((prev) => ({ ...prev, details: false }));
+    }
+  };
+
+  return (
+    <div className="w-full rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="flex flex-col gap-1">
+        <h3 className="text-lg font-semibold text-slate-900">{title}</h3>
+        {description && <p className="text-sm text-slate-600">{description}</p>}
+        <p className="text-sm text-slate-600">
+          {new Date(start_time).toLocaleString()} - {new Date(end_time).toLocaleString()}
+        </p>
+        <p className="text-xs text-slate-400">Status: {localStatus}</p>
+      </div>
+
+      <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+        <button
+          type="button"
+          onClick={handleClaim}
+          disabled={loading.claim || localStatus !== 'open'}
+          className="inline-flex w-full items-center justify-center rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300 sm:w-auto"
+        >
+          {loading.claim ? 'Claiming...' : 'Claim'}
+        </button>
+
+        <button
+          type="button"
+          onClick={handleSwap}
+          disabled={loading.swap}
+          className="inline-flex w-full items-center justify-center rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-400 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+        >
+          {loading.swap ? 'Requesting...' : 'Request Swap'}
+        </button>
+
+        <button
+          type="button"
+          onClick={handleDetails}
+          disabled={loading.details}
+          className="inline-flex w-full items-center justify-center px-2 py-2 text-sm font-medium text-blue-600 transition hover:text-blue-700 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+        >
+          {loading.details ? 'Loading...' : 'Details'}
+        </button>
+      </div>
+    </div>
+  );
+};
+
+export default ShiftCard;
