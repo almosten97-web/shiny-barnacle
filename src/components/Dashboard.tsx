@@ -6,7 +6,8 @@ import NoRole from './NoRole';
 
 interface Profile {
   id: string;
-  full_name: string;
+  full_name: string | null;
+  email: string;
   role: string | null | undefined;
   is_admin?: boolean;
 }
@@ -42,7 +43,7 @@ const Dashboard: React.FC<DashboardProps> = ({ profile, session, isAdmin = false
   return (
     <DashboardComponent
       id={profile.id}
-      full_name={profile.full_name}
+      full_name={profile.full_name ?? 'Team Member'}
       role={profile.role ?? 'default'}
       employee={profile}
     />

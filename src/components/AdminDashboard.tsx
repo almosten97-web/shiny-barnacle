@@ -3,7 +3,8 @@ import { Link } from 'react-router-dom';
 
 interface Profile {
   id: string;
-  full_name: string;
+  full_name: string | null;
+  email?: string;
   role: string;
   is_admin?: boolean;
 }
@@ -13,10 +14,12 @@ interface AdminDashboardProps {
 }
 
 const AdminDashboard: React.FC<AdminDashboardProps> = ({ admin }) => {
+  const displayName = admin.full_name?.trim() || 'there';
+
   return (
     <div style={{ padding: '20px' }}>
       <h1>Admin Dashboard</h1>
-      <p>Welcome, {admin.full_name}!</p>
+      <p>Welcome, {displayName}!</p>
       <div style={{ marginTop: '20px', padding: '10px', backgroundColor: '#e8f5e9', borderRadius: '4px' }}>
         <p><strong>Admin Access Confirmed</strong></p>
         <p>is_admin: {admin.is_admin === true ? 'true' : 'false'}</p>

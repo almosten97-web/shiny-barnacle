@@ -3,12 +3,12 @@ import React, { useState } from 'react';
 import { supabase } from '../supabase';
 
 interface LoginProps {
-  onLoginSuccess: (user: any) => void;
-  onError: (message: string) => void;
-  message: string | null;
+  onLoginSuccess?: (user: any) => void;
+  onError?: (message: string) => void;
+  message?: string | null;
 }
 
-const Login: React.FC<LoginProps> = ({ onError, message }) => {
+const Login: React.FC<LoginProps> = ({ onError, onLoginSuccess, message }) => {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
@@ -16,10 +16,10 @@ const Login: React.FC<LoginProps> = ({ onError, message }) => {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    onError(''); // Clear previous errors
+    onError?.(''); // Clear previous errors
 
     try {
-      const { error } = await supabase.auth.signInWithOtp({
+      const { data, error } = await supabase.auth.signInWithOtp({
         email: email,
         options: {
           emailRedirectTo: window.location.href,
@@ -31,9 +31,10 @@ const Login: React.FC<LoginProps> = ({ onError, message }) => {
       }
 
       setEmailSent(true);
+      onLoginSuccess?.(data?.user ?? null);
     } catch (error: any) {
       console.error(error);
-      onError(`Failed to send sign-in link: ${error.message}`);
+      onError?.(`Failed to send sign-in link: ${error.message}`);
     } finally {
       setLoading(false);
     }

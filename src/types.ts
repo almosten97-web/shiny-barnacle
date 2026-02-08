@@ -25,15 +25,17 @@ export interface Profile {
   role: string;
   active: boolean | null;
   created_at: string | null;
+  is_admin: boolean | null;
 }
 
-export type ShiftStatus = 'pending' | 'approved' | 'rejected' | 'open' | 'assigned' | 'completed' | 'cancelled';
+export type ShiftStatus = 'open' | 'assigned' | 'completed' | 'cancelled';
+export type ShiftRequestStatus = 'pending' | 'approved' | 'rejected';
 
 export interface ShiftRequest {
   id: string;
   shift_id: string | null;
   user_id: string | null;
-  status: ShiftStatus | null;
+  status: ShiftRequestStatus | null;
   created_at: string | null;
 }
 
@@ -46,6 +48,7 @@ export interface Shift {
   created_by: string | null;
   notes: string | null;
   created_at: string | null;
+  assigned_to: string | null;
 }
 
 export interface VisitRequest {

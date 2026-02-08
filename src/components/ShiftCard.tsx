@@ -4,19 +4,20 @@ import { supabase } from '../supabase';
 
 type ShiftCardProps = {
   shiftId: string;
-  title: string;
-  description?: string | null;
+  notes?: string | null;
   start_time: string;
   end_time: string;
-  status: 'open' | 'pending' | 'confirmed';
+  status: 'open' | 'assigned' | 'completed' | 'cancelled';
 };
 
-const ShiftCard: React.FC<ShiftCardProps> = ({ shiftId, title, description, start_time, end_time, status }) => {
+const ShiftCard: React.FC<ShiftCardProps> = ({ shiftId, notes, start_time, end_time, status }) => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState({ claim: false, swap: false, details: false });
   const [localStatus, setLocalStatus] = useState(status);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const handleClaim = async () => {
+    setActionError(null);
     setLoading((prev) => ({ ...prev, claim: true }));
     try {
       const { data: userData, error: userError } = await supabase.auth.getUser();
@@ -25,19 +26,21 @@ const ShiftCard: React.FC<ShiftCardProps> = ({ shiftId, title, description, star
 
       const { error: claimError } = await supabase
         .from('shifts')
-        .update({ status: 'pending', assigned_to: userData.user.id })
+        .update({ status: 'assigned', assigned_to: userData.user.id, assigned_user_id: userData.user.id })
         .eq('id', shiftId);
 
       if (claimError) throw claimError;
-      setLocalStatus('pending');
+      setLocalStatus('assigned');
     } catch (error) {
       console.error(error);
+      setActionError('Unable to claim this shift. Please try again.');
     } finally {
       setLoading((prev) => ({ ...prev, claim: false }));
     }
   };
 
   const handleSwap = async () => {
+    setActionError(null);
     setLoading((prev) => ({ ...prev, swap: true }));
     try {
       console.log(`Requesting swap for ${shiftId}`);
@@ -47,6 +50,7 @@ const ShiftCard: React.FC<ShiftCardProps> = ({ shiftId, title, description, star
   };
 
   const handleDetails = async () => {
+    setActionError(null);
     setLoading((prev) => ({ ...prev, details: true }));
     try {
       navigate(`/shifts/${shiftId}`);
@@ -58,8 +62,8 @@ const ShiftCard: React.FC<ShiftCardProps> = ({ shiftId, title, description, star
   return (
     <div className="w-full rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
       <div className="flex flex-col gap-1">
-        <h3 className="text-lg font-semibold text-slate-900">{title}</h3>
-        {description && <p className="text-sm text-slate-600">{description}</p>}
+        <h3 className="text-lg font-semibold text-slate-900">Shift</h3>
+        {notes && <p className="text-sm text-slate-600">{notes}</p>}
         <p className="text-sm text-slate-600">
           {new Date(start_time).toLocaleString()} - {new Date(end_time).toLocaleString()}
         </p>
@@ -94,6 +98,7 @@ const ShiftCard: React.FC<ShiftCardProps> = ({ shiftId, title, description, star
           {loading.details ? 'Loading...' : 'Details'}
         </button>
       </div>
+      {actionError && <p className="mt-3 text-sm text-red-600">{actionError}</p>}
     </div>
   );
 };

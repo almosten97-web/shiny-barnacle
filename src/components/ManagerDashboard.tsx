@@ -2,23 +2,25 @@
 import React from 'react';
 
 interface ManagerDashboardProps {
-  manager: {
+  employee: {
     id: string;
-    full_name: string;
-    email: string;
-    role: 'manager';
+    full_name: string | null;
+    email?: string | null;
+    role: string;
   };
 }
 
-const ManagerDashboard: React.FC<ManagerDashboardProps> = ({ manager }) => {
+const ManagerDashboard: React.FC<ManagerDashboardProps> = ({ employee }) => {
+  const displayName = employee.full_name?.trim() || 'there';
+
   return (
     <div className="p-8">
       <h2 className="text-3xl font-bold text-gray-800">Manager Dashboard</h2>
-      <p className="mt-2 text-lg text-gray-600">Welcome, {manager.full_name}!</p>
+      <p className="mt-2 text-lg text-gray-600">Welcome, {displayName}!</p>
       <div className="mt-6 bg-white shadow-md rounded-lg p-6">
         <h3 className="text-xl font-semibold text-gray-700">Your Information</h3>
-        <p className="mt-2 text-gray-600"><strong>Email:</strong> {manager.email}</p>
-        <p className="text-gray-600"><strong>Role:</strong> {manager.role}</p>
+        <p className="mt-2 text-gray-600"><strong>Email:</strong> {employee.email ?? 'Not available'}</p>
+        <p className="text-gray-600"><strong>Role:</strong> {employee.role}</p>
       </div>
       {/* Placeholder for future features */}
       <div className="mt-8">

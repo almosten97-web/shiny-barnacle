@@ -1,13 +1,24 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from './supabase';
 import { Session } from '@supabase/supabase-js';
-import { Route, Routes } from 'react-router-dom';
-import { Dashboard, Login } from './components';
-import { Schedules, Staff, Settings, Analytics } from './components';
+import { Navigate, Route, Routes, useNavigate } from 'react-router-dom';
+import { Login } from './components';
+import AppShell from './components/layout/AppShell';
+import Overview from './pages/Overview';
+import Schedule from './pages/Schedule';
+import Staff from './pages/Staff';
+import Clients from './pages/Clients';
+import Visits from './pages/Visits';
+import Requests from './pages/Requests';
+import Availability from './pages/Availability';
+import Roles from './pages/Roles';
+import Settings from './pages/Settings';
+import ShiftDetails from './components/ShiftDetails';
 
 interface Profile {
   id: string;
-  full_name: string;
+  full_name: string | null;
+  email: string;
   role: string;
   is_admin?: boolean;
 }
@@ -19,6 +30,8 @@ const ProtectedRoute: React.FC<{
   loading: boolean;
   error: string | null;
 }> = ({ session, profile, isAdmin, loading, error }) => {
+  const navigate = useNavigate();
+
   // If still loading, show loading screen
   if (loading) {
     return (
@@ -35,24 +48,20 @@ const ProtectedRoute: React.FC<{
       <div style={{ padding: '20px', textAlign: 'center' }}>
         <h2>Error</h2>
         <p>{error}</p>
-        <button onClick={() => window.location.href = '/login'}>Go to Login</button>
+        <button type="button" onClick={() => navigate('/login', { replace: true })}>
+          Go to Login
+        </button>
       </div>
     );
   }
 
   // If no session or profile, redirect to login via route
   if (!session || !profile) {
-    return <Login />;
+    return <Navigate to="/login" replace />;
   }
 
   // User is authenticated, show dashboard
-  return (
-    <Dashboard
-      profile={profile}
-      session={session}
-      isAdmin={isAdmin}
-    />
-  );
+  return <AppShell profile={{ ...profile, is_admin: isAdmin }} />;
 };
 
 const App: React.FC = () => {
@@ -61,6 +70,7 @@ const App: React.FC = () => {
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [loginMessage, setLoginMessage] = useState<string | null>(null);
   const isMountedRef = useRef(true);
 
   const fetchUserProfile = async (userId: string) => {
@@ -68,7 +78,7 @@ const App: React.FC = () => {
     try {
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
-        .select('id, full_name, role, is_admin')
+        .select('id, full_name, email, role, is_admin')
         .eq('id', userId)
         .single();
 
@@ -96,6 +106,7 @@ const App: React.FC = () => {
       setProfile(profileData);
       setIsAdmin(profileData.is_admin === true);
       setError(null);
+      setLoginMessage(null);
       setLoading(false);
     } catch (err) {
       console.error('Profile fetch exception:', err);
@@ -133,11 +144,11 @@ const App: React.FC = () => {
           setSession(currentSession);
           await fetchUserProfile(currentSession.user.id);
         } else {
-          setSession(null);
-          setProfile(null);
-          setLoading(false);
-          console.log('No session found - user needs to login');
-        }
+        setSession(null);
+        setProfile(null);
+        setLoading(false);
+        console.log('No session found - user needs to login');
+      }
       } catch (err) {
         console.error('Auth init error:', err);
         if (isMountedRef.current) {
@@ -171,6 +182,7 @@ const App: React.FC = () => {
         setProfile(null);
         setIsAdmin(false);
         setError(null);
+        setLoginMessage(null);
         setLoading(false);
       }
     });
@@ -183,12 +195,32 @@ const App: React.FC = () => {
 
   return (
     <Routes>
-      <Route path="/login" element={<Login />} />
-            <Route path="/schedules" element={<Schedules />} />
-      <Route path="/staff" element={<Staff />} />
-      <Route path="/settings" element={<Settings />} />
-      <Route path="/analytics" element={<Analytics />} />
-      <Route path="*" element={<ProtectedRoute session={session} profile={profile} isAdmin={isAdmin} loading={loading} error={error} />} />
+      <Route
+        path="/login"
+        element={
+          <Login
+            message={loginMessage}
+            onError={(message) => setLoginMessage(message || null)}
+            onLoginSuccess={() => {}}
+          />
+        }
+      />
+      <Route
+        path="/"
+        element={<ProtectedRoute session={session} profile={profile} isAdmin={isAdmin} loading={loading} error={error} />}
+      >
+        <Route index element={<Overview />} />
+        <Route path="schedule" element={<Schedule />} />
+        <Route path="staff" element={<Staff />} />
+        <Route path="clients" element={<Clients />} />
+        <Route path="visits" element={<Visits />} />
+        <Route path="requests" element={<Requests />} />
+        <Route path="availability" element={<Availability />} />
+        <Route path="roles" element={<Roles />} />
+        <Route path="settings" element={<Settings />} />
+        <Route path="shifts/:shiftId" element={<ShiftDetails />} />
+      </Route>
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 };

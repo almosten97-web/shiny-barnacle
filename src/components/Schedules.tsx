@@ -5,11 +5,10 @@ import { supabase } from '../supabase';
 
 type ShiftRow = {
   id: string;
-  title: string;
-  description: string | null;
+  notes: string | null;
   start_time: string;
   end_time: string;
-  status: 'open' | 'pending' | 'confirmed';
+  status: 'open' | 'assigned' | 'completed' | 'cancelled';
 };
 
 const Schedules: React.FC = () => {
@@ -20,20 +19,24 @@ const Schedules: React.FC = () => {
   const fetchShifts = async () => {
     setLoading(true);
     setError(null);
-    const { data, error: fetchError } = await supabase
-      .from('shifts')
-      .select('id, title, description, start_time, end_time, status')
-      .eq('status', 'open')
-      .order('start_time', { ascending: true });
+    try {
+      const { data, error: fetchError } = await supabase
+        .from('shifts')
+        .select('id, notes, start_time, end_time, status')
+        .eq('status', 'open')
+        .order('start_time', { ascending: true });
 
-    if (fetchError) {
-      setError(fetchError.message);
+      if (fetchError) {
+        setError(fetchError.message);
+        return;
+      }
+
+      setShifts(data ?? []);
+    } catch (err) {
+      setError('Failed to load shifts.');
+    } finally {
       setLoading(false);
-      return;
     }
-
-    setShifts(data ?? []);
-    setLoading(false);
   };
 
   useEffect(() => {
@@ -58,7 +61,7 @@ const Schedules: React.FC = () => {
   return (
     <div className="p-6">
       <Link to="/" className="mb-4 inline-block text-blue-600 hover:text-blue-700">
-        ← Back to Dashboard
+        &lt;- Back to Dashboard
       </Link>
       <h1 className="text-2xl font-semibold text-slate-900">Shift Schedules</h1>
       <p className="mt-2 text-slate-600">View and manage all shift schedules here.</p>
@@ -72,8 +75,7 @@ const Schedules: React.FC = () => {
           <ShiftCard
             key={shift.id}
             shiftId={shift.id}
-            title={shift.title}
-            description={shift.description}
+            notes={shift.notes}
             start_time={shift.start_time}
             end_time={shift.end_time}
             status={shift.status}
@@ -85,3 +87,4 @@ const Schedules: React.FC = () => {
 };
 
 export default Schedules;
+

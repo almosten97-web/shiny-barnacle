@@ -2,7 +2,8 @@ import React from 'react';
 
 interface Profile {
   id: string;
-  full_name: string;
+  full_name: string | null;
+  email?: string;
   role: string;
 }
 
@@ -11,10 +12,12 @@ interface EmployeeDashboardProps {
 }
 
 const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({ employee }) => {
+  const displayName = employee.full_name?.trim() || 'there';
+
   return (
     <div style={{ padding: '20px' }}>
       <h1>Employee Dashboard</h1>
-      <p>Welcome, {employee.full_name}!</p>
+      <p>Welcome, {displayName}!</p>
       <div style={{ marginTop: '20px', padding: '10px', backgroundColor: '#e3f2fd', borderRadius: '4px' }}>
         <p>Role: <strong>{employee.role}</strong></p>
         <p>User ID: {employee.id}</p>
