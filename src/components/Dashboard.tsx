@@ -1,13 +1,11 @@
 import React from 'react';
-import { dashboardConfig } from '../dashboardConfig';
 import AdminDashboard from './AdminDashboard';
-import EmployeeDashboard from './EmployeeDashboard';
-import NoRole from './NoRole';
+import ManagerDashboard from './ManagerDashboard';
+import VisitCalendarDashboard from './VisitCalendarDashboard';
 
 interface Profile {
   id: string;
-  full_name: string | null;
-  email: string;
+  full_name: string;
   role: string | null | undefined;
   is_admin?: boolean;
 }
@@ -19,33 +17,60 @@ interface DashboardProps {
 }
 
 const Dashboard: React.FC<DashboardProps> = ({ profile, session, isAdmin = false }) => {
-  // If there is no profile yet, show loading or fallback UI
+  // 1. Safety Check: Loading State
   if (!profile) {
-    return <div style={{ padding: '20px', textAlign: 'center' }}>Loading profile...</div>;
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-emerald-50">
+        <div className="text-center">
+          <div className="h-12 w-12 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-emerald-900 font-medium">Syncing your profile...</p>
+        </div>
+      </div>
+    );
   }
 
-  // Check admin status first - if user is marked as admin, render AdminDashboard
-  if (isAdmin) {
+  const normalizedRole = (profile.role || '').toLowerCase();
+
+  /**
+   * ROUTING LOGIC
+   * We prioritize explicit admin status, then manager roles, 
+   * then fall back to standard caregiver (employee) views.
+   */
+
+  // 2. Admin View (Full system control)
+  if (isAdmin || profile.is_admin || normalizedRole === 'admin') {
     return (
       <AdminDashboard 
-        admin={profile as any} 
+        admin={{
+          id: profile.id,
+          full_name: profile.full_name,
+          email: session?.user?.email
+        }}
       />
     );
   }
 
-  // Otherwise, check role and render appropriate dashboard
-  const role = profile.role && dashboardConfig[profile.role as keyof typeof dashboardConfig]
-    ? (profile.role as keyof typeof dashboardConfig)
-    : 'default';
+  // 3. Manager View (Shift creation & Client management)
+  if (normalizedRole === 'manager') {
+    return (
+      <ManagerDashboard
+        manager={{
+          id: profile.id,
+          full_name: profile.full_name,
+          email: session?.user?.email ?? 'manager@example.com',
+          role: 'manager',
+        }}
+      />
+    );
+  }
 
-  const DashboardComponent = dashboardConfig[role].component || dashboardConfig.default.component;
-
+  // 4. All other authenticated users default to caregiver calendar view.
   return (
-    <DashboardComponent
-      id={profile.id}
-      full_name={profile.full_name ?? 'Team Member'}
-      role={profile.role ?? 'default'}
-      employee={profile}
+    <VisitCalendarDashboard
+      title="Charlene's Scheduling App"
+      subtitle={`Caregiver view: ${profile.full_name}`}
+      lockedPerspective="caregiver"
+      lockedCaregiverId={profile.id}
     />
   );
 };

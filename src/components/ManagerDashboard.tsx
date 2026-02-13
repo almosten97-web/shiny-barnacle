@@ -1,41 +1,110 @@
-
-import React from 'react';
+import React, { useState } from 'react';
+import { supabase } from '../supabase';
+import VisitCalendarDashboard from './VisitCalendarDashboard';
+import RolesAccessPanel from './RolesAccessPanel';
+import PendingClaimsPanel from './PendingClaimsPanel';
 
 interface ManagerDashboardProps {
-  employee: {
+  manager: {
     id: string;
-    full_name: string | null;
-    email?: string | null;
-    role: string;
+    full_name: string;
+    email: string;
+    role: 'manager';
   };
 }
 
-const ManagerDashboard: React.FC<ManagerDashboardProps> = ({ employee }) => {
-  const displayName = employee.full_name?.trim() || 'there';
+const ManagerDashboard: React.FC<ManagerDashboardProps> = ({ manager }) => {
+  const [activeTab, setActiveTab] = useState<'shifts' | 'roles' | 'claims'>('shifts');
+  const [lastNonCalendarTab, setLastNonCalendarTab] = useState<'roles' | 'claims'>('roles');
+
+  const changeTab = (nextTab: 'shifts' | 'roles' | 'claims') => {
+    if (nextTab !== 'shifts') {
+      setLastNonCalendarTab(nextTab);
+    }
+    setActiveTab(nextTab);
+  };
+
+  const toggleFullCalendar = () => {
+    if (activeTab === 'shifts') {
+      setActiveTab(lastNonCalendarTab);
+      return;
+    }
+    setActiveTab('shifts');
+  };
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+  };
 
   return (
-    <div className="p-8">
-      <h2 className="text-3xl font-bold text-gray-800">Manager Dashboard</h2>
-      <p className="mt-2 text-lg text-gray-600">Welcome, {displayName}!</p>
-      <div className="mt-6 bg-white shadow-md rounded-lg p-6">
-        <h3 className="text-xl font-semibold text-gray-700">Your Information</h3>
-        <p className="mt-2 text-gray-600"><strong>Email:</strong> {employee.email ?? 'Not available'}</p>
-        <p className="text-gray-600"><strong>Role:</strong> {employee.role}</p>
-      </div>
-      {/* Placeholder for future features */}
-      <div className="mt-8">
-        <h3 className="text-xl font-semibold text-gray-700">Actions</h3>
-        <div className="mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          <div className="bg-gray-200 p-6 rounded-lg text-center">
-            <p className="font-semibold text-gray-600">(Coming Soon) Add Employee</p>
+    <div className="min-h-screen bg-emerald-50/50 p-4 sm:p-8">
+      <div className="mx-auto max-w-7xl">
+        <header className="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+          <div>
+            <h1 className="text-3xl font-bold text-emerald-900">Charlene's Scheduling App</h1>
+            <p className="mt-1 text-sm text-emerald-700">Manager view: {manager.full_name} ({manager.email})</p>
+            <div className="mt-4 flex w-fit gap-2 rounded-xl bg-emerald-100/50 p-1">
+              <button
+                onClick={() => changeTab('shifts')}
+                className={`rounded-lg px-4 py-2 text-sm font-bold transition-all ${
+                  activeTab === 'shifts' ? 'bg-white text-emerald-700 shadow-sm' : 'text-emerald-600 hover:text-emerald-700'
+                }`}
+              >
+                Weekly Schedule
+              </button>
+              <button
+                onClick={() => changeTab('roles')}
+                className={`rounded-lg px-4 py-2 text-sm font-bold transition-all ${
+                  activeTab === 'roles' ? 'bg-white text-emerald-700 shadow-sm' : 'text-emerald-600 hover:text-emerald-700'
+                }`}
+              >
+                Roles & Access
+              </button>
+              <button
+                onClick={() => changeTab('claims')}
+                className={`rounded-lg px-4 py-2 text-sm font-bold transition-all ${
+                  activeTab === 'claims' ? 'bg-white text-emerald-700 shadow-sm' : 'text-emerald-600 hover:text-emerald-700'
+                }`}
+              >
+                Pending Claims
+              </button>
+            </div>
           </div>
-          <div className="bg-gray-200 p-6 rounded-lg text-center">
-            <p className="font-semibold text-gray-600">(Coming Soon) Manage Schedules</p>
+          <div>
+            <button
+              type="button"
+              onClick={toggleFullCalendar}
+              className={`mr-2 rounded-lg border px-3 py-2 text-xs font-semibold shadow-sm ${
+                activeTab === 'shifts'
+                  ? 'border-emerald-300 bg-emerald-600 text-white hover:bg-emerald-700'
+                  : 'border-emerald-200 bg-white text-emerald-700 hover:bg-emerald-50'
+              }`}
+            >
+              Full Calendar: {activeTab === 'shifts' ? 'On' : 'Off'}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                void handleLogout();
+              }}
+              className="rounded-lg border border-emerald-200 bg-white px-3 py-2 text-xs font-semibold text-emerald-700 shadow-sm hover:bg-emerald-50"
+            >
+              Log Out
+            </button>
           </div>
-          <div className="bg-gray-200 p-6 rounded-lg text-center">
-            <p className="font-semibold text-gray-600">(Coming Soon) View Reports</p>
-          </div>
-        </div>
+        </header>
+
+        {activeTab === 'shifts' && (
+          <VisitCalendarDashboard
+            title="Charlene's Scheduling App"
+            subtitle={`Manager view: ${manager.full_name} (${manager.email})`}
+            embedded
+            allowShiftManagement
+          />
+        )}
+
+        {activeTab === 'roles' && <RolesAccessPanel />}
+        {activeTab === 'claims' && <PendingClaimsPanel />}
       </div>
     </div>
   );
