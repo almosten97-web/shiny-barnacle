@@ -1,27 +1,66 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from './supabase';
 import { Session } from '@supabase/supabase-js';
-import { Navigate, Route, Routes, useNavigate } from 'react-router-dom';
-import { Login } from './components';
-import AppShell from './components/layout/AppShell';
-import Overview from './pages/Overview';
-import Schedule from './pages/Schedule';
-import Staff from './pages/Staff';
-import Clients from './pages/Clients';
-import Visits from './pages/Visits';
-import Requests from './pages/Requests';
-import Availability from './pages/Availability';
-import Roles from './pages/Roles';
-import Settings from './pages/Settings';
-import ShiftDetails from './components/ShiftDetails';
+import { Navigate, Route, Routes } from 'react-router-dom';
+import { Dashboard, Login } from './components/index';
+import SharedCalendarView from './components/SharedCalendarView';
+import NotFound from './components/NotFound';
 
 interface Profile {
   id: string;
-  full_name: string | null;
-  email: string;
+  full_name: string;
   role: string;
   is_admin?: boolean;
 }
+
+const CompleteProfileView: React.FC<{
+  initialName: string;
+  email: string;
+  onSave: (fullName: string) => Promise<void>;
+  saving: boolean;
+  error: string | null;
+}> = ({ initialName, email, onSave, saving, error }) => {
+  const [fullName, setFullName] = useState(initialName);
+
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    await onSave(fullName);
+  };
+
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-emerald-50 px-4">
+      <form onSubmit={handleSubmit} className="w-full max-w-md rounded-2xl border border-emerald-100 bg-white p-6 shadow-sm">
+        <h1 className="text-xl font-bold text-emerald-900">Welcome to Charlene&apos;s Scheduling App</h1>
+        <p className="mt-2 text-sm text-emerald-700">Add your full name to finish setting up your account.</p>
+        <p className="mt-1 text-xs text-emerald-500">{email}</p>
+        <label htmlFor="full-name" className="mt-5 block text-xs font-semibold uppercase tracking-wide text-emerald-700">
+          Full Name
+        </label>
+        <input
+          id="full-name"
+          type="text"
+          value={fullName}
+          onChange={(event) => setFullName(event.target.value)}
+          className="mt-1 w-full rounded-lg border border-emerald-200 bg-white px-3 py-2 text-sm text-emerald-900 outline-none focus:ring-2 focus:ring-emerald-500"
+          placeholder="Your full name"
+          autoFocus
+        />
+        {error && (
+          <p className="mt-3 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700" role="alert">
+            {error}
+          </p>
+        )}
+        <button
+          type="submit"
+          disabled={saving || !fullName.trim()}
+          className="mt-5 w-full rounded-lg border border-emerald-300 bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {saving ? 'Saving...' : 'Save Name'}
+        </button>
+      </form>
+    </div>
+  );
+};
 
 const ProtectedRoute: React.FC<{
   session: Session | null;
@@ -29,9 +68,11 @@ const ProtectedRoute: React.FC<{
   isAdmin: boolean;
   loading: boolean;
   error: string | null;
-}> = ({ session, profile, isAdmin, loading, error }) => {
-  const navigate = useNavigate();
-
+  needsNameSetup: boolean;
+  savingName: boolean;
+  nameSetupError: string | null;
+  onSaveName: (fullName: string) => Promise<void>;
+}> = ({ session, profile, isAdmin, loading, error, needsNameSetup, savingName, nameSetupError, onSaveName }) => {
   // If still loading, show loading screen
   if (loading) {
     return (
@@ -48,20 +89,46 @@ const ProtectedRoute: React.FC<{
       <div style={{ padding: '20px', textAlign: 'center' }}>
         <h2>Error</h2>
         <p>{error}</p>
-        <button type="button" onClick={() => navigate('/login', { replace: true })}>
-          Go to Login
-        </button>
+        <button onClick={() => window.location.href = '/login'}>Go to Login</button>
       </div>
     );
   }
 
-  // If no session or profile, redirect to login via route
-  if (!session || !profile) {
+  // If no session, redirect to login via route
+  if (!session) {
     return <Navigate to="/login" replace />;
   }
 
+  // Fall back to a default caregiver profile so new users without a profile row can still access the app.
+  const effectiveProfile: Profile =
+    profile ||
+    ({
+      id: session.user.id,
+      full_name: session.user.user_metadata?.full_name || '',
+      role: 'employee',
+      is_admin: false,
+    } as Profile);
+
+  if (needsNameSetup) {
+    return (
+      <CompleteProfileView
+        initialName={effectiveProfile.full_name}
+        email={session.user.email || 'No email found'}
+        onSave={onSaveName}
+        saving={savingName}
+        error={nameSetupError}
+      />
+    );
+  }
+
   // User is authenticated, show dashboard
-  return <AppShell profile={{ ...profile, is_admin: isAdmin }} />;
+  return (
+    <Dashboard
+      profile={effectiveProfile}
+      session={session}
+      isAdmin={isAdmin}
+    />
+  );
 };
 
 const App: React.FC = () => {
@@ -70,17 +137,82 @@ const App: React.FC = () => {
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [loginMessage, setLoginMessage] = useState<string | null>(null);
+  const [needsNameSetup, setNeedsNameSetup] = useState(false);
+  const [nameSetupError, setNameSetupError] = useState<string | null>(null);
+  const [savingName, setSavingName] = useState(false);
+  const [hasPersistedProfile, setHasPersistedProfile] = useState(false);
   const isMountedRef = useRef(true);
+  const isDev = import.meta.env.DEV;
 
-  const fetchUserProfile = async (userId: string) => {
-    console.log('Fetching profile for user:', userId);
+  const applyPendingInvite = useCallback(async (user: Session['user'], baseProfile: Profile): Promise<Profile> => {
+    try {
+      if (!user.email || baseProfile.is_admin || baseProfile.role === 'manager') return baseProfile;
+
+      const normalizedEmail = user.email.trim().toLowerCase();
+
+      const { data: invite, error: inviteError } = await supabase
+        .from('caregiver_invites')
+        .select('id, full_name, role')
+        .eq('email', normalizedEmail)
+        .eq('status', 'pending')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (inviteError || !invite) return baseProfile;
+
+      const invitedRole = (invite.role || 'employee').toLowerCase();
+      const appliedProfile: Profile =
+        invitedRole === 'admin'
+          ? { ...baseProfile, full_name: invite.full_name || baseProfile.full_name, role: 'manager', is_admin: true }
+          : invitedRole === 'manager'
+            ? { ...baseProfile, full_name: invite.full_name || baseProfile.full_name, role: 'manager', is_admin: false }
+            : { ...baseProfile, full_name: invite.full_name || baseProfile.full_name, role: 'employee', is_admin: false };
+
+      const { error: profileUpdateError } = await supabase.from('profiles').upsert(
+        {
+          id: user.id,
+          email: normalizedEmail,
+          full_name: appliedProfile.full_name,
+          role: appliedProfile.role,
+          is_admin: Boolean(appliedProfile.is_admin),
+        },
+        { onConflict: 'id' }
+      );
+
+      if (profileUpdateError) return baseProfile;
+
+      await supabase
+        .from('caregiver_invites')
+        .update({ status: 'accepted', accepted_at: new Date().toISOString() })
+        .eq('id', invite.id);
+
+      return appliedProfile;
+    } catch {
+      return baseProfile;
+    }
+  }, []);
+
+  const handleLogout = useCallback(async () => {
+    await supabase.auth.signOut();
+    setSession(null);
+    setProfile(null);
+    setIsAdmin(false);
+    setError(null);
+    setNeedsNameSetup(false);
+    setNameSetupError(null);
+    setHasPersistedProfile(false);
+    setLoading(false);
+  }, []);
+
+  const fetchUserProfile = useCallback(async (user: Session['user']) => {
+    console.log('Fetching profile for user:', user.id);
     try {
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
-        .select('id, full_name, email, role, is_admin')
-        .eq('id', userId)
-        .single();
+        .select('id, full_name, role, is_admin')
+        .eq('id', user.id)
+        .maybeSingle();
 
       if (!isMountedRef.current) return;
 
@@ -89,24 +221,43 @@ const App: React.FC = () => {
         setError('Failed to load profile.');
         setProfile(null);
         setIsAdmin(false);
+        setNeedsNameSetup(false);
+        setHasPersistedProfile(false);
         setLoading(false);
         return;
       }
 
       if (!profileData) {
-        console.log('No profile data returned');
-        setError('No profile found.');
-        setProfile(null);
+        const metadataName =
+          typeof user.user_metadata?.full_name === 'string' ? user.user_metadata.full_name.trim() : '';
+
+        const fallbackProfile: Profile = {
+          id: user.id,
+          full_name: metadataName,
+          role: 'employee',
+          is_admin: false,
+        };
+
+        const invitedProfile = await applyPendingInvite(user, fallbackProfile);
+
+        setProfile(invitedProfile);
         setIsAdmin(false);
+        setNeedsNameSetup(!invitedProfile.full_name?.trim());
+        setHasPersistedProfile(false);
+        setError(null);
         setLoading(false);
         return;
       }
 
-      console.log('Profile fetched:', profileData);
-      setProfile(profileData);
-      setIsAdmin(profileData.is_admin === true);
+      const invitedProfile = await applyPendingInvite(user, profileData as Profile);
+
+      console.log('Profile fetched:', invitedProfile);
+      setProfile(invitedProfile);
+      setIsAdmin(invitedProfile.is_admin === true);
+      setNeedsNameSetup(!(invitedProfile.full_name || '').trim());
+      setHasPersistedProfile(true);
+      setNameSetupError(null);
       setError(null);
-      setLoginMessage(null);
       setLoading(false);
     } catch (err) {
       console.error('Profile fetch exception:', err);
@@ -114,10 +265,54 @@ const App: React.FC = () => {
         setError('An unexpected error occurred.');
         setProfile(null);
         setIsAdmin(false);
+        setNeedsNameSetup(false);
+        setHasPersistedProfile(false);
         setLoading(false);
       }
     }
-  };
+  }, [applyPendingInvite]);
+
+  const handleSaveName = useCallback(
+    async (fullNameInput: string) => {
+      if (!session?.user) return;
+
+      const fullName = fullNameInput.trim();
+      if (!fullName) {
+        setNameSetupError('Please enter your full name.');
+        return;
+      }
+
+      setSavingName(true);
+      setNameSetupError(null);
+
+      const email = session.user.email?.trim() || `${session.user.id}@placeholder.local`;
+
+      const payload = {
+        id: session.user.id,
+        email,
+        full_name: fullName,
+        role: profile?.role || 'employee',
+        is_admin: Boolean(profile?.is_admin),
+      };
+
+      const query = hasPersistedProfile
+        ? supabase.from('profiles').update({ full_name: fullName, email }).eq('id', session.user.id)
+        : supabase.from('profiles').upsert(payload, { onConflict: 'id' });
+
+      const { error: saveError } = await query;
+
+      if (saveError) {
+        setNameSetupError(saveError.message);
+        setSavingName(false);
+        return;
+      }
+
+      await fetchUserProfile(session.user);
+      setNeedsNameSetup(false);
+      setSavingName(false);
+    },
+    [fetchUserProfile, hasPersistedProfile, profile?.is_admin, profile?.role, session]
+  );
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -142,13 +337,16 @@ const App: React.FC = () => {
 
         if (currentSession?.user) {
           setSession(currentSession);
-          await fetchUserProfile(currentSession.user.id);
+          await fetchUserProfile(currentSession.user);
         } else {
-        setSession(null);
-        setProfile(null);
-        setLoading(false);
-        console.log('No session found - user needs to login');
-      }
+          setSession(null);
+          setProfile(null);
+          setNeedsNameSetup(false);
+          setNameSetupError(null);
+          setHasPersistedProfile(false);
+          setLoading(false);
+          console.log('No session found - user needs to login');
+        }
       } catch (err) {
         console.error('Auth init error:', err);
         if (isMountedRef.current) {
@@ -174,15 +372,18 @@ const App: React.FC = () => {
       if (event === 'SIGNED_IN' && newSession?.user) {
         console.log('User signed in');
         setSession(newSession);
+        setError(null);
         setLoading(true);
-        fetchUserProfile(newSession.user.id);
+        fetchUserProfile(newSession.user);
       } else if (event === 'SIGNED_OUT') {
         console.log('User signed out');
         setSession(null);
         setProfile(null);
         setIsAdmin(false);
         setError(null);
-        setLoginMessage(null);
+        setNeedsNameSetup(false);
+        setNameSetupError(null);
+        setHasPersistedProfile(false);
         setLoading(false);
       }
     });
@@ -191,37 +392,56 @@ const App: React.FC = () => {
       isMountedRef.current = false;
       authListener?.subscription?.unsubscribe();
     };
-  }, []);
+  }, [fetchUserProfile]);
 
   return (
-    <Routes>
-      <Route
-        path="/login"
-        element={
-          <Login
-            message={loginMessage}
-            onError={(message) => setLoginMessage(message || null)}
-            onLoginSuccess={() => {}}
-          />
-        }
-      />
-      <Route
-        path="/"
-        element={<ProtectedRoute session={session} profile={profile} isAdmin={isAdmin} loading={loading} error={error} />}
-      >
-        <Route index element={<Overview />} />
-        <Route path="schedule" element={<Schedule />} />
-        <Route path="staff" element={<Staff />} />
-        <Route path="clients" element={<Clients />} />
-        <Route path="visits" element={<Visits />} />
-        <Route path="requests" element={<Requests />} />
-        <Route path="availability" element={<Availability />} />
-        <Route path="roles" element={<Roles />} />
-        <Route path="settings" element={<Settings />} />
-        <Route path="shifts/:shiftId" element={<ShiftDetails />} />
-      </Route>
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+    <>
+      {session && (
+        <button
+          type="button"
+          onClick={handleLogout}
+          className="fixed right-3 top-3 z-[9999] rounded-lg border border-emerald-200 bg-white px-3 py-2 text-xs font-semibold text-emerald-700 shadow-sm hover:bg-emerald-50"
+        >
+          Log Out
+        </button>
+      )}
+      {isDev && (
+        <div className="fixed bottom-2 right-2 z-[9999] rounded border border-slate-300 bg-white/95 px-3 py-2 text-xs text-slate-700 shadow">
+          <div>loading: {String(loading)}</div>
+          <div>session: {session ? 'yes' : 'no'}</div>
+          <div>profile: {profile ? 'yes' : 'no'}</div>
+          <div>isAdmin: {String(isAdmin)}</div>
+          <div>needsNameSetup: {String(needsNameSetup)}</div>
+          <div>error: {error || 'none'}</div>
+        </div>
+      )}
+      <Routes>
+        {/* Public routes */}
+        <Route path="/login" element={session ? <Navigate to="/" replace /> : <Login />} />
+        <Route path="/shared/:type/:token" element={<SharedCalendarView />} />
+        
+        {/* Protected dashboard route */}
+        <Route 
+          path="/" 
+          element={
+            <ProtectedRoute 
+              session={session} 
+              profile={profile} 
+              isAdmin={isAdmin} 
+              loading={loading} 
+              error={error}
+              needsNameSetup={needsNameSetup}
+              savingName={savingName}
+              nameSetupError={nameSetupError}
+              onSaveName={handleSaveName}
+            />
+          } 
+        />
+
+        {/* Explicit 404 route */}
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    </>
   );
 };
 

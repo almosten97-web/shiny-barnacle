@@ -1,13 +1,21 @@
-@import url("https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700&display=swap");
 @import "tailwindcss";
 
-@layer base {
-  :root {
-    color-scheme: light;
+@media print {
+  .no-print {
+    display: none !important;
   }
 
   body {
-    font-family: "Manrope", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-    background-color: #f8fafc;
+    background: #fff !important;
+  }
+
+  .print-calendar {
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+  }
+
+  .fc .fc-toolbar {
+    display: none !important;
   }
 }

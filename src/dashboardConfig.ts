@@ -1,19 +1,18 @@
 import AdminDashboard from "./components/AdminDashboard";
 import EmployeeDashboard from "./components/EmployeeDashboard";
-import ManagerDashboard from "./components/ManagerDashboard";
 import NoRole from "./components/NoRole";
 
 export const dashboardConfig = {
   admin: {
     component: AdminDashboard,
   },
-  employee: {
+  user: {
     component: EmployeeDashboard,
   },
-  manager: {
-    component: ManagerDashboard,
+  caregiver: {
+    component: EmployeeDashboard,
   },
-  user: {
+  employee: {
     component: EmployeeDashboard,
   },
   default: {

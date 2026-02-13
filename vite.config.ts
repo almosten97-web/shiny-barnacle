@@ -1,11 +1,11 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import tailwindcss from '@tailwindcss/vite';
 import path from 'path';
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  plugins: [react()],
-  envPrefix: ['VITE_', 'NEXT_PUBLIC_'],
+  plugins: [react(), tailwindcss()],
   base: '/', // Fix for MIME type errors
   resolve: {
     alias: {
@@ -14,10 +14,6 @@ export default defineConfig({
       '@/assets': path.resolve(__dirname, './src/assets'),
     },
   },
-  test: {
-    environment: 'jsdom',
-    setupFiles: './src/test/setup.ts',
-  },
   build: {
     outDir: './dist',
     sourcemap: true, // Recommended for production debugging
@@ -25,9 +21,10 @@ export default defineConfig({
       input: './index.html',
       output: {
         manualChunks(id) {
-          if (id.includes('node_modules')) {
-            return id.toString().split('node_modules/')[1].split('/')[0].toString();
-          }
+          if (!id.includes('node_modules')) return;
+          if (id.includes('/@fullcalendar/')) return 'vendor-fullcalendar';
+          if (id.includes('/@supabase/')) return 'vendor-supabase';
+          if (id.includes('/react/') || id.includes('/react-dom/') || id.includes('/react-router')) return 'vendor-react';
         }
       }
     },

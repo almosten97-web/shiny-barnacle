@@ -1,5 +1,5 @@
 {
-  "name": "flexible-shift-scheduler",
+  "name": "charlenes-scheduling-app",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -10,6 +10,11 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@fullcalendar/core": "^6.1.20",
+    "@fullcalendar/daygrid": "^6.1.20",
+    "@fullcalendar/interaction": "^6.1.20",
+    "@fullcalendar/react": "^6.1.20",
+    "@fullcalendar/timegrid": "^6.1.20",
     "@supabase/supabase-js": "^2.90.1",
     "@tailwindcss/postcss": "^4.1.18",
     "date-fns": "^4.1.0",
@@ -20,12 +25,10 @@
     "recharts": "^3.6.0"
   },
   "devDependencies": {
-    "@testing-library/jest-dom": "^6.9.1",
-    "@testing-library/react": "^16.3.2",
-    "@testing-library/user-event": "^14.6.1",
+    "@tailwindcss/vite": "^4.1.18",
     "@vitejs/plugin-react": "^4.7.0",
     "autoprefixer": "^10.4.23",
-    "jsdom": "^27.4.0",
+    "tailwindcss": "^4.1.18",
     "typescript": "~5.8.2",
     "vite": "^6.2.0",
     "vitest": "^4.0.17"
