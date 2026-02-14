@@ -116,7 +116,7 @@ const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({ employee }) => {
       <div className="mx-auto max-w-6xl">
         <header className="mb-8 flex items-end justify-between">
           <div>
-            <p className="text-xs font-bold uppercase tracking-widest text-slate-400">Charlene's Scheduling App</p>
+            <p className="text-xs font-bold uppercase tracking-widest text-slate-400">Charleen's Scheduling App</p>
             <h1 className="text-3xl font-bold text-slate-900">Welcome, {employee.full_name}</h1>
             <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-slate-500">Times shown in {getLocalTimeZone()}</p>
           </div>

@@ -85,7 +85,7 @@ const dashboardData = {
 
 const renderDashboard = () =>
   renderToStaticMarkup(
-    <VisitCalendarDashboard title="Charlene's Scheduling App" subtitle="Admin perspective" embedded allowShiftManagement />
+    <VisitCalendarDashboard title="Charleen's Scheduling App" subtitle="Admin perspective" embedded allowShiftManagement />
   );
 
 describe('VisitCalendarDashboard FullCalendar wiring', () => {

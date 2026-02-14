@@ -67,7 +67,7 @@ const Dashboard: React.FC<DashboardProps> = ({ profile, session, isAdmin = false
   // 4. All other authenticated users default to caregiver calendar view.
   return (
     <VisitCalendarDashboard
-      title="Charlene's Scheduling App"
+      title="Charleen's Scheduling App"
       subtitle={`Caregiver view: ${profile.full_name}`}
       lockedPerspective="caregiver"
       lockedCaregiverId={profile.id}

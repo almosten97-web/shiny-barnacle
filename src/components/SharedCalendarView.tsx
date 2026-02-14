@@ -85,7 +85,7 @@ const SharedCalendarView: React.FC = () => {
     <div className="min-h-screen bg-slate-50 p-4 sm:p-8">
       <div className="mx-auto max-w-6xl">
         <header className="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="text-xs font-bold uppercase tracking-widest text-slate-500">Charlene's Scheduling App</p>
+          <p className="text-xs font-bold uppercase tracking-widest text-slate-500">Charleen's Scheduling App</p>
           <h1 className="mt-2 text-2xl font-bold text-slate-900">{data?.entityLabel || 'Shared Schedule'}</h1>
           <p className="mt-1 text-sm text-slate-600">Times shown in {getLocalTimeZone()}</p>
         </header>

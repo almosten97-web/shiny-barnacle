@@ -1247,7 +1247,7 @@ const VisitCalendarDashboard: React.FC<VisitCalendarDashboardProps> = ({
 
           <main className="print-calendar rounded-2xl border border-emerald-100 bg-white p-4 shadow-sm">
             <div className="mb-4 hidden border-b border-slate-300 pb-3 print:block">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Charlene&apos;s Scheduling App</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Charleen&apos;s Scheduling App</p>
               <h2 className="text-xl font-bold text-slate-900">{printScheduleLabel}</h2>
               <p className="text-sm text-slate-600">
                 {perspective === 'client' ? 'Client Perspective' : 'Caregiver Perspective'} {printViewLabel}: {printRangeLabel}

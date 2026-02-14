@@ -66,7 +66,7 @@ const AdminDashboard: React.FC = () => {
       <div className="mx-auto max-w-7xl">
         <header className="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
           <div>
-            <h1 className="text-3xl font-bold text-emerald-900">Charlene's Scheduling App</h1>
+            <h1 className="text-3xl font-bold text-emerald-900">Charleen's Scheduling App</h1>
             <div className="mt-4 flex w-fit gap-2 rounded-xl bg-emerald-100/50 p-1">
               <button
                 onClick={() => changeTab('shifts')}
@@ -185,7 +185,7 @@ const AdminDashboard: React.FC = () => {
 
         {activeTab === 'shifts' && (
           <VisitCalendarDashboard
-            title="Charlene's Scheduling App"
+            title="Charleen's Scheduling App"
             subtitle="Admin perspective across all clients and caregivers"
             embedded
             allowShiftManagement

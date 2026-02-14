@@ -30,7 +30,7 @@ const CompleteProfileView: React.FC<{
   return (
     <div className="flex min-h-screen items-center justify-center bg-emerald-50 px-4">
       <form onSubmit={handleSubmit} className="w-full max-w-md rounded-2xl border border-emerald-100 bg-white p-6 shadow-sm">
-        <h1 className="text-xl font-bold text-emerald-900">Welcome to Charlene&apos;s Scheduling App</h1>
+        <h1 className="text-xl font-bold text-emerald-900">Welcome to Charleen&apos;s Scheduling App</h1>
         <p className="mt-2 text-sm text-emerald-700">Add your full name to finish setting up your account.</p>
         <p className="mt-1 text-xs text-emerald-500">{email}</p>
         <label htmlFor="full-name" className="mt-5 block text-xs font-semibold uppercase tracking-wide text-emerald-700">

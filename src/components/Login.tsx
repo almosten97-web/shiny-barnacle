@@ -94,7 +94,7 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess, onError, message }) => {
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-100">
       <div className="w-full max-w-md space-y-6 rounded-lg bg-white p-8 shadow-md">
-        <h2 className="text-center text-3xl font-extrabold text-gray-900">Charlene's Scheduling App</h2>
+        <h2 className="text-center text-3xl font-extrabold text-gray-900">Charleen's Scheduling App</h2>
         <form className="space-y-6" onSubmit={(e) => e.preventDefault()} noValidate>
           <div>
             <label htmlFor="email" className="block text-sm font-medium text-gray-700">
